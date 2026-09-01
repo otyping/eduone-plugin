@@ -1,0 +1,19 @@
+{
+  "name": "eduone",
+  "owner": {
+    "name": "OVEC AI Center",
+    "url": "https://eduone.ovecaicenter.com"
+  },
+  "metadata": {
+    "description": "คลังสกิลของ EDU ONE — เครื่องมือผลิตสื่อการเรียนการสอนระดับ สพฐ.",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "edu-one",
+      "source": "./",
+      "category": "education",
+      "description": "7 AI agents ผลิตสื่อการสอน สพฐ. ครบทุกผลผลิตจากหัวข้อเดียว"
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "name": "edu-one",
+  "version": "1.0.0",
+  "description": "ผลิตสื่อการเรียนการสอนระดับ สพฐ. (ป.1-6 / ม.1-6) ด้วย 7 AI agents — เนื้อหา · แผนการสอน · แบบฝึกหัด · สไลด์ · เพลง · วิดีโอ · เกม จากหัวข้อเดียว",
+  "author": { "name": "OVEC AI Center" },
+  "homepage": "https://eduone.ovecaicenter.com",
+  "repository": "https://github.com/otyping/eduone-plugin",
+  "license": "UNLICENSED",
+  "keywords": ["education", "obec", "thai", "teaching-materials"]
+}

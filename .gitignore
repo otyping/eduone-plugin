@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.DS_Store
+Thumbs.db
+
+# ห้ามมีความลับใน repo นี้เด็ดขาด — เป็น public
+*.key
+*.pem
+*.crt
+*.pfx
+*.p12
+.env

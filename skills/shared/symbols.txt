@@ -1,0 +1,107 @@
+# LaTeX-style aliases -> Unicode characters (UTF-8 data; one alias per line, TAB-separated)
+# Loaded by .claude/skills/lesson-plan/scripts/build_docx.py และ
+#           .claude/skills/exercise/scripts/build_docx.py
+# ใช้ในข้อความ JSON ทุกฟิลด์ที่เขียนลงเอกสาร (cover.rows, plan.rows, quiz[].question, quiz[].choices ฯลฯ)
+#
+# Inline syntax ที่ build_docx รองรับ (เรียงตามลำดับการ parse):
+#   1) Alias สัญลักษณ์   ตัวอย่าง:  "Z = 10 \Omega"          -> "Z = 10 Ω"
+#   2) Superscript       ตัวอย่าง:  "P = I^{2}R"             -> "P = I²R" (² เป็น sup จริงใน Word)
+#   3) Subscript         ตัวอย่าง:  "R_{total} = R_{1}+R_{2}" -> sub จริงใน Word
+#   4) Bold inline       ตัวอย่าง:  "**ด้านความรู้ (K):** ..."
+#
+# === วิธีเขียนสัญลักษณ์ + หน่วย (สำคัญ) ===
+# parser ใช้ "longest-match": เมื่อ \alias ตามด้วยตัวอักษรติดกัน จะจับชื่อ alias
+# ที่ยาวที่สุดเท่าที่รู้จัก แล้วคงตัวอักษรที่เหลือไว้เป็นข้อความ (เช่น หน่วย)
+#   - ไมโคร (μ) เป็น "สัญลักษณ์" จึงพิมพ์ติดหน่วยได้เลย:
+#       "\muA" -> μA   "\muF" -> μF   "\muH" -> μH   "\muV" -> μV   "\mus" -> μs
+#   - SI prefix อื่นที่เป็นอักษรลาตินธรรมดา (k, m, M, n, p, G) ให้พิมพ์เป็นข้อความปกติ
+#     แล้วใส่ \alias เฉพาะตัวสัญลักษณ์:
+#       "k\Omega" -> kΩ      "M\Omega" -> MΩ      "n\mu...?" ไม่ต้อง — n,p,m,k พิมพ์ตรง ๆ
+#       มิลลิแอมป์/มิลลิโวลต์ เป็นอักษรล้วน พิมพ์ "mA" / "mV" ได้เลย (ไม่ต้องมี alias)
+#   - องศาเซลเซียส: "30\degree C" -> 30° C  หรือใช้ "\celsius" -> ℃
+#
+# Lines starting with '#' and blank lines are ignored.
+#
+# Greek capitals (used in EE: Omega = ohm, Delta = delta-connection, Sigma = sum, Phi = magnetic flux, Pi)
+\Omega	Ω
+\ohm	Ω
+\Theta	Θ
+\Phi	Φ
+\Pi	Π
+\Sigma	Σ
+\Delta	Δ
+\Lambda	Λ
+\Psi	Ψ
+\Gamma	Γ
+\Xi	Ξ
+\Upsilon	Υ
+# Greek lowercase (mu = micro/permeability, pi, phi = phase angle, omega = angular freq, etc.)
+\alpha	α
+\beta	β
+\gamma	γ
+\delta	δ
+\epsilon	ε
+\varepsilon	ε
+\zeta	ζ
+\eta	η
+\theta	θ
+\iota	ι
+\kappa	κ
+\lambda	λ
+\mu	μ
+\micro	μ
+\nu	ν
+\xi	ξ
+\pi	π
+\rho	ρ
+\sigma	σ
+\tau	τ
+\upsilon	υ
+\phi	φ
+\varphi	φ
+\chi	χ
+\psi	ψ
+\omega	ω
+# Math relations / operators
+\pm	±
+\mp	∓
+\times	×
+\div	÷
+\cdot	·
+\approx	≈
+\neq	≠
+\leq	≤
+\geq	≥
+\ll	≪
+\gg	≫
+\equiv	≡
+\sim	∼
+\propto	∝
+# Arrows
+\to	→
+\gets	←
+\Rightarrow	⇒
+\Leftarrow	⇐
+\Leftrightarrow	⇔
+\leftrightarrow	↔
+\uparrow	↑
+\downarrow	↓
+# Misc symbols (degree, angle, parallel/perpendicular for geometry; sqrt/sum/int for math)
+\infty	∞
+\degree	°
+\celsius	℃
+\prime	′
+\dprime	″
+\dots	…
+\angle	∠
+\parallel	∥
+\perp	⊥
+\sqrt	√
+\sum	∑
+\prod	∏
+\int	∫
+\partial	∂
+\nabla	∇
+\circ	∘
+\bullet	•
+\ldots	…

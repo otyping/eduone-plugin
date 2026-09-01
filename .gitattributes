@@ -1,0 +1,4 @@
+# ปลั๊กอินนี้ถูกติดตั้งบนทั้ง Windows / macOS / Linux
+# บังคับ LF ทุกไฟล์ เพราะสคริปต์ Python ที่มี CRLF จะพังทันทีบน Linux/macOS
+# ("bad interpreter: ...^M") และ diff จะรกด้วยการเปลี่ยน line ending ล้วน ๆ
+* text=auto eol=lf
