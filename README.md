@@ -108,13 +108,12 @@ mkdir eduone-work && cd eduone-work
 
 **Windows (PowerShell)**
 ```powershell
-$p = (Get-ChildItem "$env:USERPROFILE\.claude\plugins\cache\eduone\edu-one" -Directory | Select-Object -Last 1).FullName
-python "$p\scripts\doctor.py"
+eduone-py doctor.py
 ```
 
 **macOS / Linux**
 ```bash
-python "$(ls -d ~/.claude/plugins/cache/eduone/edu-one/*/ | tail -1)scripts/doctor.py"
+eduone-py doctor.py
 ```
 
 ตัวตรวจจะบอกทีละข้อว่าอะไรพร้อม อะไรขาด และ**ขาดแล้วต้องพิมพ์อะไรแก้** เช่น

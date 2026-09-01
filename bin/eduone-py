@@ -52,7 +52,7 @@ SCRIPT=""
 if [ -f "$NAME" ]; then
     SCRIPT="$NAME"                                   # ส่ง path มาเต็ม ๆ ก็ได้
 else
-    for d in "$PLUGIN_ROOT/skills/shared/scripts" "$PLUGIN_ROOT"/skills/*/scripts; do
+    for d in "$PLUGIN_ROOT/skills/shared/scripts" "$PLUGIN_ROOT"/skills/*/scripts "$PLUGIN_ROOT/scripts"; do
         if [ -f "$d/$NAME" ]; then SCRIPT="$d/$NAME"; break; fi
     done
 fi

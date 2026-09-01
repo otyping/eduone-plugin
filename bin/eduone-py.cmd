@@ -32,6 +32,7 @@ set "SCRIPT="
 if exist "%NAME%" set "SCRIPT=%NAME%"
 if not defined SCRIPT if exist "%PLUGIN_ROOT%\skills\shared\scripts\%NAME%" set "SCRIPT=%PLUGIN_ROOT%\skills\shared\scripts\%NAME%"
 if not defined SCRIPT for /d %%D in ("%PLUGIN_ROOT%\skills\*") do if exist "%%D\scripts\%NAME%" set "SCRIPT=%%D\scripts\%NAME%"
+if not defined SCRIPT if exist "%PLUGIN_ROOT%\scripts\%NAME%" set "SCRIPT=%PLUGIN_ROOT%\scripts\%NAME%"
 if not defined SCRIPT (
   echo eduone-py: ไม่พบสคริปต์ "%NAME%" ในปลั๊กอิน 1>&2
   exit /b 1
