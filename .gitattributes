@@ -2,3 +2,8 @@
 # บังคับ LF ทุกไฟล์ เพราะสคริปต์ Python ที่มี CRLF จะพังทันทีบน Linux/macOS
 # ("bad interpreter: ...^M") และ diff จะรกด้วยการเปลี่ยน line ending ล้วน ๆ
 * text=auto eol=lf
+
+# ไฟล์ batch ของ Windows ต้องเป็น CRLF — ถ้าเป็น LF ตัวแปล cmd.exe จะอ่าน
+# goto/label และบล็อกหลายบรรทัดเพี้ยน (เป็นบั๊กที่หาสาเหตุยากมาก)
+*.cmd text eol=crlf
+*.bat text eol=crlf
