@@ -8,12 +8,23 @@
 `GradeToken = grade_slug.upper()` (P1..M6) · `SubjectToken = subject_slug.capitalize()`
 (Sci/Math/English/Social/Health/Art/Career/Thai)
 
-**BASE = `<GradeToken>-<SubjectToken>_U<unit>_<order>`** เช่น `P1-Sci_U1_1`
+**BASE** มี 2 แบบ ขึ้นกับว่าหลักสูตรของวิชานั้นละเอียดถึงระดับคาบหรือยัง
+
+| หลักสูตร | BASE | ตัวอย่าง |
+|---|---|---|
+| ระดับคาบ (มี xlsx รายคาบ) | `<G>-<S>_U<unit>_<topic>_<period>` | `M1-Math_U1_4_1` |
+| ระดับหัวข้อ (แบบเดิม) | `<G>-<S>_U<unit>_<order>` | `P1-Sci_U1_1` |
+
+**No. = ลำดับ 1 ชุดงาน** — วิชาที่ละเอียดถึงคาบ No. จึงนับเป็นคาบ (ม.1 คณิต = 1–120)
+ส่วนวิชาที่ยังไม่มี xlsx นับเป็นหัวข้อเหมือนเดิม · **ห้ามประกอบ BASE เอง**
+เรียก `no_to_token.py <grade> <subject> <No>` แล้วใช้ `base`/`topic_dir` ที่ได้
 
 ## โครงสร้าง Output
 ทุกผลผลิตของหัวข้อหนึ่งอยู่ใน **โฟลเดอร์เดียว** (ครูได้ครบจบในที่เดียว):
 ```
-Output/<GradeToken>/<SubjectToken>/<GradeToken>-<SubjectToken>_U<unit>/<BASE>/
+Output/<GradeToken>/<SubjectToken>/<G-S>_U<unit>/<G-S>_U<unit>_<topic>/<BASE>/
+  ^ ชั้น <topic> มีเฉพาะหลักสูตรระดับคาบ — โฟลเดอร์หัวข้อหลักที่ทำไว้ก่อนหน้านี้
+    กลายเป็น 'พ่อ' ของคาบพอดี ไม่ต้องย้ายงานเดิม
    1. Content/      {BASE}_C1.json + _C1.docx · {BASE}_C2.json + _C2.docx
                     + {BASE}_research.md (แหล่งอ้างอิงจาก content-research — track git)
                     + {BASE}_srcpack.md   (ย่อจาก digest ของ C1 ด้วย srcpack.py)

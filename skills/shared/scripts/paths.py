@@ -1,7 +1,8 @@
 """paths.py — single source of truth ของ path ผลผลิตทุกชนิด (EDU ONE)
 
 โครงสร้าง Output (ผู้ใช้กำหนด):
-  Output/<GradeToken>/<SubjectToken>/<GradeToken>-<SubjectToken>_U<unit>/<BASE>/
+  Output/<GradeToken>/<SubjectToken>/<G-S>_U<unit>/<G-S>_U<unit>_<topic>/<BASE>/
+  (หลักสูตรที่ยังไม่ละเอียดถึงคาบ ไม่มีชั้น <topic> — <BASE> อยู่ใต้ _U<unit> เลย)
      1. Content/      {BASE}_C1.json + _C1.docx · {BASE}_C2.json + _C2.docx
      2. LessonPlan/   {BASE}_L1.json + _L1.docx · {BASE}_L2.json + _L2.docx
      3. Exercise/     {BASE}_ex.json (โจทย์+เฉลย+วิธีคิด+สื่อ ไฟล์เดียว) + {BASE}_ex.docx
@@ -40,7 +41,7 @@ SLIDE_SOURCES = ("C1", "C2", "L1", "L2")
 def topic_paths(meta: dict) -> dict:
     """รับผลจาก no_to_token (ต้องมี base + topic_dir) คืน dict ของ path ทุกผลผลิต"""
     base = meta["base"]
-    root = meta["topic_dir"]  # Output/<G>/<S>/<G-S_Uu>/<BASE>
+    root = meta["topic_dir"]  # no_to_token ประกอบให้แล้ว ลึกกี่ชั้นก็ตามหลักสูตร
 
     def d(key):  # product dir
         return f"{root}/{FOLDERS[key]}"

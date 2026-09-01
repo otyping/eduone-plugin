@@ -41,8 +41,10 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _root import REFERENCE_DIR  # noqa: E402
 
 FRONT_RE = re.compile(r"^([A-Z_]+)\|\s*(.+?)\s*$")
+# คอลัมน์ที่ 4 (คาบ) เป็นตัวเลือก — ไฟล์เก่าที่มี 3 คอลัมน์ยังอ่านได้เหมือนเดิม
 ROW_RE = re.compile(
-    r"^\|\s*(\d+)\s*\|\s*(\d+)\.\s*(.+?)\s*\|\s*(\d+)\.\s*(.+?)\s*\|\s*$"
+    r"^\|\s*(\d+)\s*\|\s*(\d+)\.\s*(.+?)\s*\|\s*(\d+)\.\s*(.+?)\s*\|"
+    r"(?:\s*(\d+)\.\s*(.+?)\s*\|)?\s*$"
 )
 UNITBLK_RE = re.compile(r"^###\s*หน่วย\s*(\d+)\b.*?No\.(\d+)\s*[-–]\s*(\d+)")
 OBJ_RE = re.compile(r"^[-*]\s*OBJ\|\s*(.+?)\s*$")
@@ -102,11 +104,15 @@ def _parse(grade_slug: str, subject_slug: str) -> dict:
             no = int(m.group(1))
             if no in rows:
                 raise RuntimeError(f"duplicate No.{no} in {path.name}")
+            clean = lambda g: m.group(g).strip().rstrip("/").strip()  # noqa: E731
             rows[no] = {
                 "unit": int(m.group(2)),
                 "unit_name": m.group(3).strip(),
                 "order": int(m.group(4)),
-                "topic_name": m.group(5).strip().rstrip("/").strip(),
+                "topic_name": clean(5),
+                # มีค่าเฉพาะหลักสูตรที่ละเอียดถึงระดับคาบ — None = หลักสูตรแบบเดิม
+                "period": int(m.group(6)) if m.group(6) else None,
+                "period_name": clean(7) if m.group(6) else None,
             }
     # ตรวจ PREREQ หลังอ่านตารางครบ (ต้องรู้ว่ามี No. ไหนบ้าง)
     for target, deps in prereq.items():
@@ -125,6 +131,27 @@ def _parse(grade_slug: str, subject_slug: str) -> dict:
     return {"front": front, "rows": rows, "unit_meta": unit_meta, "prereq": prereq}
 
 
+def _locate(grade_token: str, subject_token: str, row: dict) -> tuple[str, str, str]:
+    """คืน (base, topic_dir, topic_folder) จากแถวหนึ่งของตารางหลักสูตร
+
+    หลักสูตรระดับคาบซ้อนโฟลเดอร์คาบไว้ใต้หัวข้อหลัก ไม่วางเรียงกันแบนใต้หน่วย —
+    หน่วยหนึ่งมีได้ถึง 17 คาบ ถ้าวางแบนจะเปิดหน่วยแล้วเจอ 17 โฟลเดอร์ที่มองไม่ออกว่า
+    เรื่องไหนคู่กับเรื่องไหน · และโฟลเดอร์ระดับหัวข้อหลักที่ทำไว้ก่อนหน้านี้กลายเป็น
+    "พ่อ" ของคาบพอดี ไม่ต้องย้ายงานเดิมเลย
+
+        3 คอลัมน์  P1-Sci_U1_1        Output/P1/Sci/P1-Sci_U1/P1-Sci_U1_1/
+        4 คอลัมน์  M1-Math_U1_4_1     Output/M1/Math/M1-Math_U1/M1-Math_U1_4/M1-Math_U1_4_1/
+    """
+    prefix = f"{grade_token}-{subject_token}_U{row['unit']}"
+    unit_folder = prefix
+    topic_folder = f"{prefix}_{row['order']}"
+    root = f"Output/{grade_token}/{subject_token}/{unit_folder}"
+    if row.get("period") is None:
+        return topic_folder, f"{root}/{topic_folder}", topic_folder
+    base = f"{topic_folder}_{row['period']}"
+    return base, f"{root}/{topic_folder}/{base}", topic_folder
+
+
 def no_to_token(grade_slug: str, subject_slug: str, no: int) -> dict:
     parsed = _parse(grade_slug, subject_slug)
     rows = parsed["rows"]
@@ -140,22 +167,19 @@ def no_to_token(grade_slug: str, subject_slug: str, no: int) -> dict:
     grade_token = grade_slug.upper()            # p1 -> P1
     subject_token = subject_slug.capitalize()   # sci -> Sci
     unit_folder = f"{grade_token}-{subject_token}_U{unit}"     # P1-Sci_U1
-    base = f"{grade_token}-{subject_token}_U{unit}_{row['order']}"  # P1-Sci_U1_1
-    topic_dir = f"Output/{grade_token}/{subject_token}/{unit_folder}/{base}"
+    base, topic_dir, topic_folder = _locate(grade_token, subject_token, row)
 
     # หัวข้อที่ต้องรู้มาก่อน — คืน metadata พอให้ประกอบ path ได้ (paths.py เติม path ให้)
     prereq = []
     for d in parsed["prereq"].get(no, []):
         r = rows[d]
-        d_unit_folder = f"{grade_token}-{subject_token}_U{r['unit']}"
-        d_base = f"{grade_token}-{subject_token}_U{r['unit']}_{r['order']}"
+        d_base, d_dir, _ = _locate(grade_token, subject_token, r)
         prereq.append({
             "no": d,
-            "topic_name": r["topic_name"],
+            "topic_name": r["period_name"] or r["topic_name"],
             "unit": r["unit"],
             "base": d_base,
-            "topic_dir": (
-                f"Output/{grade_token}/{subject_token}/{d_unit_folder}/{d_base}"),
+            "topic_dir": d_dir,
         })
 
     return {
@@ -172,7 +196,12 @@ def no_to_token(grade_slug: str, subject_slug: str, no: int) -> dict:
         "unit": unit,
         "unit_name": row["unit_name"],
         "order": row["order"],
-        "topic_name": row["topic_name"],
+        # หลักสูตรระดับคาบ: topic_name = ชื่อคาบ (สิ่งที่ผลิตจริง)
+        # ส่วนชื่อหัวข้อหลักที่คาบนี้สังกัดอยู่ที่ main_topic_name
+        "topic_name": row["period_name"] or row["topic_name"],
+        "main_topic_name": row["topic_name"],
+        "period": row["period"],
+        "topic_folder": topic_folder,
         "obj": um.get("obj", []),
         "comp": um.get("comp", []),
         "unit_folder": unit_folder,
@@ -182,6 +211,7 @@ def no_to_token(grade_slug: str, subject_slug: str, no: int) -> dict:
         "header": (
             f"ระดับชั้น{front.get('GRADE','')} > วิชา{front.get('SUBJECT','')} > "
             f"หน่วย{row['unit_name']} > เรื่อง{row['topic_name']}"
+            + (f" > คาบ{row['period']} {row['period_name']}" if row["period"] else "")
         ),
     }
 
