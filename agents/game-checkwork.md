@@ -19,7 +19,7 @@ model: opus
 ### A. schema / โครงสร้าง
 - `schema_version=2`, `base`/`title`/`header` ครบ.
 - `play`: `draw=10`, `default_time_limit_sec=20`, `max_points=1000`.
-- `questions` = 20 ข้อ. แต่ละข้อมี `id`, `text`, `difficulty` ∈ {easy,medium,hard}, `time_limit_sec`, `choices`, `answer`, `explanation`.
+- `questions` = เท่ากับจำนวนข้อในแบบฝึกหัดต้นทาง (ค่าเริ่มต้น 30 ข้อ). แต่ละข้อมี `id`, `text`, `difficulty` ∈ {easy,medium,hard}, `time_limit_sec`, `choices`, `answer`, `explanation`.
 - แต่ละข้อมี **4 choices** key = ก/ข/ค/ง ครบและตามลำดับ.
 
 ### B. เฉลยถูกและตรงไฟล์แบบฝึกหัด — สำคัญสุด

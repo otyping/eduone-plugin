@@ -26,8 +26,8 @@ description: MASTER orchestrator ของ EDU ONE (สพฐ.) — รับ (�
 | 3 | song | `/song` | เพลงประกอบ (เนื้อ+style; render เป็น stub) |
 | 4 | slides | `/slides` | สไลด์นำเสนอ (render เป็น stub) |
 | 5 | video | `/video` | วิดีโอ (script/asset; render เป็น stub) |
-| 6 | exercise | `/exercise` | แบบฝึกหัดปรนัย 20 ข้อ + เฉลย + สื่อรูป/เสียง ({BASE}_ex.json ไฟล์เดียว + .docx) |
-| 7 | game | `/game` | คลังคำถามเกม Kahoot game.json (สุ่มเล่น 10/20 ข้อ) |
+| 6 | exercise | `/exercise` | แบบฝึกหัดปรนัย 30 ข้อ + เฉลย + สื่อรูป/เสียง ({BASE}_ex.json ไฟล์เดียว + .docx) |
+| 7 | game | `/game` | คลังคำถามเกม Kahoot game.json (สุ่มเล่นครั้งละ 10 ข้อ) |
 
 ## Dependency graph — เดินเป็น "ระลอก" (wave)
 **ประตูเดียวของทั้งระบบคือ C1 ผ่าน checkwork** ก่อนหน้านั้นห้ามให้ผลผลิตใดเริ่ม

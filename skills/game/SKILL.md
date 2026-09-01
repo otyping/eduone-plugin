@@ -1,11 +1,11 @@
 ---
 name: game
-description: สร้างคลังคำถามเกมตอบคำถามแบบ Kahoot (game.json) ระดับ สพฐ. จากแบบฝึกหัด 20 ข้อ ({BASE}_ex.json ของ Agent 6) — เก็บครบ 20 ข้อ เกมสุ่มเล่นครั้งละ 10 ข้อ คะแนน = ความถูก + ความเร็ว. ลำดับงาน lookup token → ตรวจมี {BASE}_ex.json → build_game_json.py → game-writer/game-checkwork ตรวจคุณภาพให้เหมาะเล่นจับเวลา. เรียกใช้เมื่อผู้ใช้พิมพ์ "ทำ game / ทำเกม <ชั้น> <วิชา> no.X".
+description: สร้างคลังคำถามเกมตอบคำถามแบบ Kahoot (game.json) ระดับ สพฐ. จากแบบฝึกหัด ({BASE}_ex.json ของ Agent 6) — เก็บครบทุกข้อ เกมสุ่มเล่นครั้งละ 10 ข้อ คะแนน = ความถูก + ความเร็ว. ลำดับงาน lookup token → ตรวจมี {BASE}_ex.json → build_game_json.py → game-writer/game-checkwork ตรวจคุณภาพให้เหมาะเล่นจับเวลา. เรียกใช้เมื่อผู้ใช้พิมพ์ "ทำ game / ทำเกม <ชั้น> <วิชา> no.X".
 ---
 
 # Skill: game — คลังคำถามเกม Kahoot (สพฐ.)
 
-orchestrator ของ Agent 7. แปลงแบบฝึกหัดปรนัย 20 ข้อ (ผลผลิตของ Agent 6 /exercise) เป็นคลังคำถามเกม `game.json` เหมาะเล่นแข่งจับเวลา. เกมเก็บครบ 20 ข้อ แต่ game-app จะสุ่มเล่นครั้งละ `play.draw` (=10) ข้อ. **Agent 7 ผลิตเฉพาะ JSON** — ตัว game web-app เป็นเฟสถัดไป (ดู `game-app/README.md`).
+orchestrator ของ Agent 7. แปลงแบบฝึกหัดปรนัย (ผลผลิตของ Agent 6 /exercise) เป็นคลังคำถามเกม `game.json` เหมาะเล่นแข่งจับเวลา. เกมเก็บครบทุกข้อ แต่ game-app จะสุ่มเล่นครั้งละ `play.draw` (=10) ข้อ. **Agent 7 ผลิตเฉพาะ JSON** — ตัว game web-app เป็นเฟสถัดไป (ดู `game-app/README.md`).
 
 ## Trigger
 ผู้ใช้พิมพ์ทำนอง "ทำ game / ทำเกม <ชั้น> <วิชา> no.X" เช่น "ทำเกม ป.1 วิทย์ no.1".
@@ -56,7 +56,7 @@ eduone-py build_game_json.py \
 - FAIL → ส่งรายการแก้ + `changed_questions` กลับให้ writer แก้เฉพาะข้อ แล้ว check ซ้ำ. **วนได้ไม่เกิน 2 รอบ**.
 
 ### 6) รายงาน
-- ไฟล์ที่ได้: `<game_json>` = `Output/<GradeToken>/<SubjectToken>/<GradeToken>-<SubjectToken>_U<unit>/<BASE>/7. Activity/{BASE}_game.json` (20 ข้อ, สุ่มเล่นครั้งละ 10).
+- ไฟล์ที่ได้: `<game_json>` = `Output/<GradeToken>/<SubjectToken>/<GradeToken>-<SubjectToken>_U<unit>/<BASE>/7. Activity/{BASE}_game.json` (เท่าจำนวนข้อในแบบฝึกหัด, สุ่มเล่นครั้งละ 10).
 - หมายเหตุ: เกม web-app ยังไม่สร้าง (ดู `game-app/README.md`) — ผลผลิตเฟสนี้คือ JSON.
 - ตาราง token usage ต่อ sub-agent.
 
