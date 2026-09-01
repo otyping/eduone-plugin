@@ -52,7 +52,8 @@ python --version
 **Windows (PowerShell)**
 ```powershell
 $p = (Get-ChildItem "$env:USERPROFILE\.claude\plugins\cache\eduone\edu-one" -Directory | Select-Object -Last 1).FullName
-pip install -r "$pequirements.txt"
+pip install -r "$p
+equirements.txt"
 ```
 
 **macOS / Linux**
@@ -125,10 +126,20 @@ python "$(ls -d ~/.claude/plugins/cache/eduone/edu-one/*/ | tail -1)scripts/doct
 
 ```bash
 claude plugin marketplace update eduone
-claude plugin update edu-one
+claude plugin update edu-one@eduone
 ```
 
-ปิด Claude Code แล้วเปิดใหม่หนึ่งครั้งให้ของใหม่มีผล
+> ★ ต้องใส่ `@eduone` ต่อท้าย — ถ้าพิมพ์แค่ `claude plugin update edu-one`
+> จะขึ้น `Plugin "edu-one" not found` (ทดสอบแล้วเจอจริง)
+
+**ปิด Claude Code แล้วเปิดใหม่หนึ่งครั้ง** ให้ของใหม่มีผล (ตัวอัปเดตจะบอกว่า
+"Restart to apply changes")
+
+เช็คว่าอัปเดตติดจริง:
+
+```bash
+claude plugin list        # ดูเลข Version
+```
 
 ---
 
