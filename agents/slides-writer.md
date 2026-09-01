@@ -15,7 +15,7 @@ model: opus
 - ตรวจจำนวนจริงก่อนส่งงาน: `build_slides.py <json> <ไฟล์ชั่วคราว.pptx> --no-embed` แล้วดู `(N สไลด์)`
 
 ## ขั้นแรกสุด (บังคับ)
-**อ่าน Master Prompt ก่อนเสมอ:** `.claude/skills/slides/reference/prompt-master-powerpoint.md`
+**อ่าน Master Prompt ก่อนเสมอ:** `${CLAUDE_PLUGIN_ROOT}/skills/slides/reference/prompt-master-powerpoint.md`
 ไฟล์นี้คือสเปกหลัก (canonical) ทำตามทุกข้อ รวม schema เต็มของ artifact
 
 ## INPUT ที่ได้รับ

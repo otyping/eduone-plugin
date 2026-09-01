@@ -11,7 +11,7 @@ model: opus
 
 ## ขั้นแรกสุด (บังคับ)
 **อ่านไฟล์ Master Prompt ก่อนเสมอ:**
-`.claude/skills/song/reference/prompt-master-music.md`
+`${CLAUDE_PLUGIN_ROOT}/skills/song/reference/prompt-master-music.md`
 ไฟล์นี้คือสเปกหลัก (canonical) — ทำตามทุกข้อ โดยเฉพาะเงื่อนไขเฉพาะภาษาตามค่า `lang`
 
 ## INPUT ที่ได้รับ

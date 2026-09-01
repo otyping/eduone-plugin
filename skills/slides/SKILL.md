@@ -10,7 +10,7 @@ description: สร้างสไลด์นำเสนอสื่อกา�
 (ยกเว้นแหล่งที่ไม่มีไฟล์ต้นทางจริง ๆ → ข้ามแล้วแจ้งในรายงาน)
 
 > 📄 **ก่อน build / เจอปัญหาฟอนต์-ล้นกรอบ-รูปประกอบ** อ่าน
-> `.claude/skills/slides/reference/build-notes.md` — เทมเพลต · ฟอนต์ `a:cs` · กฎ "(ต่อ)" ห้ามย่อ ·
+> `${CLAUDE_PLUGIN_ROOT}/skills/slides/reference/build-notes.md` — เทมเพลต · ฟอนต์ `a:cs` · กฎ "(ต่อ)" ห้ามย่อ ·
 > ใบสั่งผลิตรูป · ตารางแปลง L1/L2 → ภาษานักเรียน
 > (ย้ายออกจาก CLAUDE.md มาไว้ที่นี่ **โหลดเฉพาะตอนต้องใช้จริง**)
 
@@ -76,7 +76,7 @@ ls -l "<content_c1_json>" "<content_c2_json>" "<plan_l1_json>" "<plan_l2_json>"
 **3.1) ยิง `slides-writer` ทุกแหล่งพร้อมกันใน _ข้อความเดียว_** (1 แหล่ง = 1 agent)
 ส่งให้แต่ละตัว: `base`, `header`, `lang`, `src`, ระดับชั้น, **`src_path`** = path ของต้นทาง
 **แหล่งนั้นเท่านั้น** (`content_c1_json` / `content_c2_json` / `plan_l1_json` / `plan_l2_json`)
-และผลจาก 3.0 · slides-writer ต้อง **อ่าน `.claude/skills/slides/reference/prompt-master-powerpoint.md` ก่อน**
+และผลจาก 3.0 · slides-writer ต้อง **อ่าน `${CLAUDE_PLUGIN_ROOT}/skills/slides/reference/prompt-master-powerpoint.md` ก่อน**
 แล้วเขียนที่ key `slides_json[<src>]` = `.../<BASE>/4. Slides/{BASE}_slides_<src>.json`
 
 > **ส่ง path ไม่ส่งเนื้อหา** — writer เป็นคน `Read` ต้นทางเอง เนื้อหาหนักจึงอยู่ใน context
@@ -131,7 +131,7 @@ PY="$LOCALAPPDATA/Programs/Python/Python312/python.exe"
 
 ### STEP 5.1 — ใบสั่งผลิตรูป (เมื่อแหล่งนั้นมี `image_prompt`)
 ```bash
-"$PY" .claude/skills/slides/scripts/build_slides_brief.py <slides_json[src]>
+"$PY" "${CLAUDE_PLUGIN_ROOT}/skills/slides/scripts/build_slides_brief.py" <slides_json[src]>
 ```
 ได้ `slides_brief_md[src]` = `{BASE}_slides_<src>_media-brief.md` (จาก `paths.py`) —
 prompt ภาษาอังกฤษพร้อมคัดลอกไปวาง **Google Nano Banana** (ตัดประโยคสั่งใส่ป้ายไทยออกให้แล้ว
@@ -141,7 +141,7 @@ prompt ภาษาอังกฤษพร้อมคัดลอกไปว�
 ### STEP 5.2 — เติมรูปที่ผลิตเสร็จ ("เติมรูปสไลด์ <ชั้น> <วิชา> no.X")
 ผู้ใช้วางไฟล์รูปลง `slides_media_dir[src]` (`{BASE}_slides_<src>_media/`) หรือส่งรายการ URL มา
 ```bash
-"$PY" .claude/skills/slides/scripts/fill_slides_images.py <slides_json[src]> [<โฟลเดอร์|urls.txt>]
+"$PY" "${CLAUDE_PLUGIN_ROOT}/skills/slides/scripts/fill_slides_images.py" <slides_json[src]> [<โฟลเดอร์|urls.txt>]
 "$PY" "${CLAUDE_PLUGIN_ROOT}/skills/shared/scripts/build_slides.py" <slides_json[src]> <slides_pptx[src]>
 ```
 - จับคู่ด้วยชื่อไฟล์ `{BASE}_slides_<src>_<NN>.png` (NN = ลำดับหน้าใน `slides[]`)

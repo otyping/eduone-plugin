@@ -59,4 +59,4 @@ Scene count must satisfy:
 ```
 
 > **การแมป render (เมื่อมี service):** HeyGen (avatar+TTS ต่อฉาก) หรือ pipeline TTS+ภาพ+ffmpeg.
-> ดู `.claude/skills/video/scripts/tts_render.py` + `video_assemble.py` (ปัจจุบัน stub)
+> ดู `"${CLAUDE_PLUGIN_ROOT}/skills/video/scripts/tts_render.py"` + `video_assemble.py` (ปัจจุบัน stub)

@@ -46,7 +46,7 @@ ls "<ex_json>"
 ```bash
 export PYTHONIOENCODING=utf-8
 PY="$LOCALAPPDATA/Programs/Python/Python312/python.exe"
-"$PY" .claude/skills/game/scripts/build_game_json.py \
+"$PY" "${CLAUDE_PLUGIN_ROOT}/skills/game/scripts/build_game_json.py" \
   "<ex_json>" "<game_json>" \
   --base "<BASE>" --header "<header>" --title "เรื่อง<topic_name>"
 ```

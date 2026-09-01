@@ -86,4 +86,4 @@
 ไม่ต้องอธิบายอะไรเพิ่มเติม
 
 > **การแมป Suno API (เมื่อมี key):** `lyrics` → custom-mode lyrics/prompt, `style` → tags/style.
-> ดู `.claude/skills/song/scripts/suno_render.py` (ปัจจุบันเป็น stub)
+> ดู `"${CLAUDE_PLUGIN_ROOT}/skills/song/scripts/suno_render.py"` (ปัจจุบันเป็น stub)

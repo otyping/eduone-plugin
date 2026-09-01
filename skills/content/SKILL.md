@@ -121,9 +121,9 @@ unit_name, grade เพื่อปรับระดับภาษา), path �
 
 **Persona/canon (lazy — optional สำหรับ สพฐ.):**
 ก่อนเรียก writer ถ้ามีไฟล์เหล่านี้ให้ prepend เนื้อความเข้าไปใน prompt ของ writer:
-- `.claude/skills/content/personas/<subject_slug>/<subject_code>-academic.md` (ให้ C1)
-- `.claude/skills/content/personas/<subject_slug>/<subject_code>-narrative.md` (ให้ C2)
-- `.claude/skills/content/personas/<subject_slug>/<subject_code>-canon.md` (ให้ทั้งคู่ — ศัพท์/ข้อตกลงร่วม)
+- `${CLAUDE_PLUGIN_ROOT}/skills/content/personas/<subject_slug>/<subject_code>-academic.md` (ให้ C1)
+- `${CLAUDE_PLUGIN_ROOT}/skills/content/personas/<subject_slug>/<subject_code>-narrative.md` (ให้ C2)
+- `${CLAUDE_PLUGIN_ROOT}/skills/content/personas/<subject_slug>/<subject_code>-canon.md` (ให้ทั้งคู่ — ศัพท์/ข้อตกลงร่วม)
 
 ถ้าไม่มี persona → **ไม่ต้องสร้าง** เพียงบันทึกหมายเหตุว่า "persona ไม่มี — ร่างจากความรู้ทั่วไปตามระดับชั้น"
 แล้วให้ writer ใช้ความรู้พื้นฐานวิชานั้น ปรับความลึกตามระดับชั้น (ประถม=ง่าย, มัธยม=ลึกขึ้น)

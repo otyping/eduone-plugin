@@ -1,7 +1,7 @@
 # External services — ปลายทาง render ของ agent 3 (Song) และ 5 (Video)
 
 > ย้ายมาจาก `CLAUDE.md` — โหลดเฉพาะตอนทำงาน `/song` หรือ `/video`
-> (ส่วนของ Slides ย้ายไป `.claude/skills/slides/reference/build-notes.md` เพราะ build ในเครื่องแล้ว)
+> (ส่วนของ Slides ย้ายไป `${CLAUDE_PLUGIN_ROOT}/skills/slides/reference/build-notes.md` เพราะ build ในเครื่องแล้ว)
 
 ## Song → ✅ wired กับ Suno (sunoapi.org)
 `song/scripts/suno_render.py` (generate → poll → download)

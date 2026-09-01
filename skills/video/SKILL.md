@@ -42,7 +42,7 @@ export PYTHONIOENCODING=utf-8
 ### STEP 3 — เรียก video-writer
 ส่ง: `base`, `header`, `lang`, `topic_name`, `obj[]`, `comp[]`, ระดับชั้น, เนื้อความจาก srcpack
 (ย้ำให้ใช้ศัพท์ตามตารางศัพท์ให้ตรงกับสื่ออื่น)
-video-writer ต้อง **อ่าน `.claude/skills/video/reference/prompt-master-video.md` ก่อน** แล้วเขียนที่ key `video_json` (ใน `5. Video/`):
+video-writer ต้อง **อ่าน `${CLAUDE_PLUGIN_ROOT}/skills/video/reference/prompt-master-video.md` ก่อน** แล้วเขียนที่ key `video_json` (ใน `5. Video/`):
 `video_json` = `.../<BASE>/5. Video/{BASE}_video.json`
 
 ### STEP 4 — video-checkwork loop (≤ 2 รอบ)
@@ -55,8 +55,8 @@ video-writer ต้อง **อ่าน `.claude/skills/video/reference/prompt-
 > `${CLAUDE_PLUGIN_ROOT}/skills/shared/reference/external-services.md`
 ```bash
 export PYTHONIOENCODING=utf-8
-"$LOCALAPPDATA/Programs/Python/Python312/python.exe" .claude/skills/video/scripts/tts_render.py <video_json> <video_audio_dir>
-"$LOCALAPPDATA/Programs/Python/Python312/python.exe" .claude/skills/video/scripts/video_assemble.py <video_json> <video_mp4>
+"$LOCALAPPDATA/Programs/Python/Python312/python.exe" "${CLAUDE_PLUGIN_ROOT}/skills/video/scripts/tts_render.py" <video_json> <video_audio_dir>
+"$LOCALAPPDATA/Programs/Python/Python312/python.exe" "${CLAUDE_PLUGIN_ROOT}/skills/video/scripts/video_assemble.py" <video_json> <video_mp4>
 ```
 (`<video_json>`, `<video_audio_dir>`, `<video_mp4>` = ค่าจาก `paths.py`; ไฟล์ narration อยู่ใน `5. Video/{BASE}_video_audio/`, mp4 อยู่ใน `5. Video/` ร่วมกับ json)
 **STUB**: ยังไม่มี API/asset จริง จะเขียน `<out>.PENDING` placeholder

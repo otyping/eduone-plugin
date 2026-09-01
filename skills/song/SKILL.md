@@ -47,7 +47,7 @@ export PYTHONIOENCODING=utf-8
 ### STEP 3 — เรียก song-writer (sub-agent)
 ส่งให้ song-writer: `base`, `header`, `lang`, `topic_name`, `obj[]`, `comp[]`, ระดับชั้น,
 และ **เนื้อความจาก srcpack** (ย้ำให้ใช้ศัพท์ตามตารางศัพท์เป๊ะ ๆ เพื่อให้ตรงกับสื่ออื่น)
-song-writer ต้อง **อ่าน `.claude/skills/song/reference/prompt-master-music.md` ก่อน** แล้วเขียน artifact ที่ key `song_json` (ใน `6. Song/`):
+song-writer ต้อง **อ่าน `${CLAUDE_PLUGIN_ROOT}/skills/song/reference/prompt-master-music.md` ก่อน** แล้วเขียน artifact ที่ key `song_json` (ใน `6. Song/`):
 `song_json` = `.../<BASE>/6. Song/{BASE}_song.json`  (รูปแบบ `{"lyrics":"...","style":"..."}`)
 
 ### STEP 4 — song-checkwork loop (≤ 2 รอบ)
@@ -62,7 +62,7 @@ song-writer ต้อง **อ่าน `.claude/skills/song/reference/prompt-ma
 ```bash
 export PYTHONIOENCODING=utf-8
 # ต้องมี SUNO_API_KEY ใน env (อย่าเขียน key ลงไฟล์/commit)
-"$LOCALAPPDATA/Programs/Python/Python312/python.exe" .claude/skills/song/scripts/suno_render.py <song_json> <song_mp3>
+"$LOCALAPPDATA/Programs/Python/Python312/python.exe" "${CLAUDE_PLUGIN_ROOT}/skills/song/scripts/suno_render.py" <song_json> <song_mp3>
 ```
 (`<song_json>`, `<song_mp3>` = ค่าจาก `paths.py`; ผลลัพธ์อยู่ใน `6. Song/` ร่วมกับ json)
 - เรียก `POST /api/v1/generate` → poll `record-info` จนสำเร็จ (~30–90 วิ, **ใช้เครดิต**) → ดาวน์โหลด mp3

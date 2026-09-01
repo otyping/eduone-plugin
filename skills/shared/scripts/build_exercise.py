@@ -2,7 +2,7 @@
 """
 build_exercise.py — สร้าง .docx แบบฝึกหัด จาก {BASE}_ex.json ไฟล์เดียว
 
-สคีมา (ดู .claude/skills/exercise/reference/prompt-master-exercise.md):
+สคีมา (ดู ${CLAUDE_PLUGIN_ROOT}/skills/exercise/reference/prompt-master-exercise.md):
   { "questions": [ { text, imageUrl, audioUrl, imageAlt, audioText,
                      choices: [ { contentType, content, isTrue, alt } ],
                      difficulty, solutionSteps } ] }

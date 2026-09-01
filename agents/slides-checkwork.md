@@ -10,7 +10,7 @@ model: opus
 ตรวจ `{BASE}_slides_<src>.json` เทียบ Master Prompt powerpoint **ห้ามแก้ไฟล์ใด ๆ**
 
 ## ขั้นแรก
-อ่านเกณฑ์: `.claude/skills/slides/reference/prompt-master-powerpoint.md`
+อ่านเกณฑ์: `${CLAUDE_PLUGIN_ROOT}/skills/slides/reference/prompt-master-powerpoint.md`
 อ่าน artifact ที่ path ที่ orchestrator ระบุ (resolve จาก `paths.py` key `slides_json[<src>]`) — co-located ใน `4. Slides/{BASE}_slides_<src>.json` เช่น `Output/P1/Sci/P1-Sci_U1/P1-Sci_U1_1/4. Slides/P1-Sci_U1_1_slides_C1.json`
 
 **รับได้หลายแหล่งในการเรียกครั้งเดียว** — orchestrator อาจส่ง path มา 1–4 ไฟล์ (C1/C2/L1/L2)

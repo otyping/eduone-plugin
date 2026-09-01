@@ -19,7 +19,7 @@ model: opus
    ```bash
    export PYTHONIOENCODING=utf-8
    PY="$LOCALAPPDATA/Programs/Python/Python312/python.exe"
-   "$PY" .claude/skills/game/scripts/build_game_json.py \
+   "$PY" "${CLAUDE_PLUGIN_ROOT}/skills/game/scripts/build_game_json.py" \
      "<ex_json จาก orchestrator/paths.py>" \
      "<game_json จาก orchestrator/paths.py>" \
      --base "<BASE>" --header "<header>" --title "เรื่อง<topic_name>"

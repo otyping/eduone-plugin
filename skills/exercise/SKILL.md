@@ -8,7 +8,7 @@ description: สร้างแบบฝึกหัดปรนัย 20 ข้
 orchestrator ของ pipeline แบบฝึกหัด. ออกข้อสอบปรนัย 20 ข้อ + เฉลย + วิธีคิด จากเนื้อหาวิชาการ (C1)
 ลง **JSON ไฟล์เดียว** แล้ว build เป็น .docx ฉบับผู้ตรวจ
 
-> 📄 **ข้อสอบมีรูป/เสียง?** อ่าน `.claude/skills/exercise/reference/media-flow.md` ก่อน —
+> 📄 **ข้อสอบมีรูป/เสียง?** อ่าน `${CLAUDE_PLUGIN_ROOT}/skills/exercise/reference/media-flow.md` ก่อน —
 > สคีมาสื่อ · ใบสั่งผลิต · Uvoice/Nano Banana · drawer ที่วาดรูปเองได้ทั้งหมด · กฎ build/verify
 > (ย้ายออกจาก CLAUDE.md มาไว้ที่นี่ **โหลดเฉพาะตอนต้องใช้จริง**)
 

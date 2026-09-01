@@ -141,7 +141,7 @@ def font_path(family: str, bold: bool = False) -> str:
             return p
     raise FileNotFoundError(
         f"ไม่พบไฟล์ฟอนต์ {name} — ต้องติดตั้ง {family} ก่อน "
-        "(ดู .claude/skills/slides/reference/build-notes.md)")
+        "(ดู ${CLAUDE_PLUGIN_ROOT}/skills/slides/reference/build-notes.md)")
 
 
 @functools.lru_cache(maxsize=None)

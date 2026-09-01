@@ -46,7 +46,7 @@ choices: [{ contentType, content, isTrue }], difficulty, solutionSteps }] }`
   `leafstarch` ใบทดสอบแป้งด้วยไอโอดีน (`cover` แถบกระดาษดำ × `stain` none/all/outside/inside)
   — `plantwhole`/`flowersection` ใส่ป้ายด้วย `labels` (**ใช้เลข 1-4 ไม่ใช่ ก-ง** กันสับสนกับตัวอักษรของตัวเลือก)
   หรือ `showNames: true` เพื่อขึ้นชื่อไทย · ทุกชนิดล็อกกรอบภาพ ตัวเลือกที่เป็นรูปจึงมาตราส่วนเท่ากันเอง
-- ดูตัวอย่างครบทุกชนิด: `gen_math_images.py .claude/skills/exercise/reference/sample-images.json --out-dir tmp/sample-images`
+- ดูตัวอย่างครบทุกชนิด: `gen_math_images.py ${CLAUDE_PLUGIN_ROOT}/skills/exercise/reference/sample-images.json --out-dir tmp/sample-images`
 - **ป้ายในรูปห้ามใช้ตัวห้อย/ตัวยกยูนิโคด** (₁ ²) — ฟอนต์ TH Sarabun New ไม่มี glyph ใช้ `L1` `cm3` แทน
 
 > ⚠️ **ชื่อ drawer ไม่ใช่คำอธิบายเนื้อหาวิชา** — `dyestem` เขียนว่า "กิ่งพืช" แต่การทดลองจริงในหนังสือ

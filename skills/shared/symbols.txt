@@ -1,6 +1,6 @@
 # LaTeX-style aliases -> Unicode characters (UTF-8 data; one alias per line, TAB-separated)
-# Loaded by .claude/skills/lesson-plan/scripts/build_docx.py และ
-#           .claude/skills/exercise/scripts/build_docx.py
+# Loaded by "${CLAUDE_PLUGIN_ROOT}/skills/lesson-plan/scripts/build_docx.py" และ
+#           "${CLAUDE_PLUGIN_ROOT}/skills/exercise/scripts/build_docx.py"
 # ใช้ในข้อความ JSON ทุกฟิลด์ที่เขียนลงเอกสาร (cover.rows, plan.rows, quiz[].question, quiz[].choices ฯลฯ)
 #
 # Inline syntax ที่ build_docx รองรับ (เรียงตามลำดับการ parse):

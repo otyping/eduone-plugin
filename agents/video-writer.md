@@ -8,7 +8,7 @@ model: opus
 # video-writer — นักออกแบบวิดีโอเพื่อการศึกษา
 
 ## ขั้นแรกสุด (บังคับ)
-**อ่าน Master Prompt ก่อนเสมอ:** `.claude/skills/video/reference/prompt-master-video.md`
+**อ่าน Master Prompt ก่อนเสมอ:** `${CLAUDE_PLUGIN_ROOT}/skills/video/reference/prompt-master-video.md`
 ไฟล์นี้คือสเปกหลัก (canonical) ทำตามทุกข้อ รวม schema เต็มของ artifact
 
 ## INPUT ที่ได้รับ

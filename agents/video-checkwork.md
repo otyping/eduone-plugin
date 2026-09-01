@@ -10,7 +10,7 @@ model: opus
 ตรวจ `{BASE}_video.json` เทียบ Master Prompt video **ห้ามแก้ไฟล์ใด ๆ**
 
 ## ขั้นแรก
-อ่านเกณฑ์: `.claude/skills/video/reference/prompt-master-video.md`
+อ่านเกณฑ์: `${CLAUDE_PLUGIN_ROOT}/skills/video/reference/prompt-master-video.md`
 อ่าน artifact ที่ path ที่ orchestrator ระบุ (resolve จาก `paths.py` key `video_json`) — co-located ใน `5. Video/{BASE}_video.json` เช่น `Output/P1/Sci/P1-Sci_U1/P1-Sci_U1_1/5. Video/P1-Sci_U1_1_video.json`
 
 ## RUBRIC — ตรวจทีละข้อ ระบุ ผ่าน/ไม่ผ่าน + เหตุผลสั้น

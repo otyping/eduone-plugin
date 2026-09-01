@@ -11,7 +11,7 @@ model: opus
 
 ## 0. อ่านก่อนตรวจ (บังคับ)
 
-1. `.claude/skills/exercise/reference/prompt-master-exercise.md` — สเปกที่ผู้ออกต้องทำตาม
+1. `${CLAUDE_PLUGIN_ROOT}/skills/exercise/reference/prompt-master-exercise.md` — สเปกที่ผู้ออกต้องทำตาม
 2. `${CLAUDE_PLUGIN_ROOT}/skills/shared/reference/thai-style-guide.md` — กฎภาษาไทย 18 ข้อ
 
 ## INPUT

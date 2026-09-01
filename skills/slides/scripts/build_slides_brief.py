@@ -52,7 +52,7 @@ HOWTO = """## ผลิตเสร็จแล้วทำอย่างไร
 ```bash
 export PYTHONIOENCODING=utf-8
 PY="$LOCALAPPDATA/Programs/Python/Python312/python.exe"
-"$PY" .claude/skills/slides/scripts/fill_slides_images.py "{spec}"
+"$PY" "${CLAUDE_PLUGIN_ROOT}/skills/slides/scripts/fill_slides_images.py" "{spec}"
 "$PY" "${CLAUDE_PLUGIN_ROOT}/skills/shared/scripts/build_slides.py" "{spec}" "{pptx}"
 ```
 

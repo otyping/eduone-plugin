@@ -12,7 +12,7 @@ model: opus
 
 ## 0. อ่านก่อนเขียน (บังคับ ตามลำดับ)
 
-1. `.claude/skills/exercise/reference/prompt-master-exercise.md` — สเปกเต็มของข้อสอบและ schema
+1. `${CLAUDE_PLUGIN_ROOT}/skills/exercise/reference/prompt-master-exercise.md` — สเปกเต็มของข้อสอบและ schema
 2. `${CLAUDE_PLUGIN_ROOT}/skills/shared/reference/thai-style-guide.md` — กฎภาษาไทย 18 ข้อ
 3. `${CLAUDE_PLUGIN_ROOT}/skills/shared/reference/math-symbols-guide.md` — **บังคับถ้าเป็นวิชาคำนวณ**
    (คณิต ฟิสิกส์ เคมี) หรือมีสัญลักษณ์/สูตรใด ๆ ในข้อสอบ

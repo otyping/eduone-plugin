@@ -10,7 +10,7 @@ model: opus
 ตรวจ artifact `{BASE}_song.json` เทียบกับ Master Prompt music **ห้ามแก้ไฟล์ใด ๆ**
 
 ## ขั้นแรก
-อ่าน reference เพื่อใช้เป็นเกณฑ์: `.claude/skills/song/reference/prompt-master-music.md`
+อ่าน reference เพื่อใช้เป็นเกณฑ์: `${CLAUDE_PLUGIN_ROOT}/skills/song/reference/prompt-master-music.md`
 อ่าน artifact ที่ path ที่ orchestrator ระบุ (resolve จาก `paths.py` key `song_json`) — co-located ใน `6. Song/{BASE}_song.json` เช่น `Output/P1/Sci/P1-Sci_U1/P1-Sci_U1_1/6. Song/P1-Sci_U1_1_song.json`
 
 ## RUBRIC — 7 STEP (จาก Master Prompt)
