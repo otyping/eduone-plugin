@@ -17,26 +17,47 @@
 
 ## ติดตั้ง (ครั้งเดียว ~15 นาที)
 
+> ★ **ทำตามลำดับนี้** — `requirements.txt` มากับปลั๊กอิน จึงต้องติดตั้งปลั๊กอินก่อนถึงจะ pip ได้
+
 ### 1. Claude Code + subscription ของตัวเอง
 
 ติดตั้ง Claude Code แล้วล็อกอินด้วยบัญชีที่บริษัทเบิกให้
 งานทั้งหมดรันบนเครื่องคุณด้วย subscription ของคุณเอง — เซิร์ฟเวอร์ยืมไปใช้แทนไม่ได้
 
-### 2. Python 3.12 + แพ็กเกจ
-
 ```bash
-python --version          # ต้องเป็น 3.12.x
-pip install -r requirements.txt
+claude --version          # ต้องขึ้นเลขเวอร์ชัน
 ```
 
-> Windows: ถ้า `python` เปิดหน้า Microsoft Store แปลว่า alias ชี้ผิด
-> ให้ใช้ path เต็มแทน — โดยปกติคือ `%LOCALAPPDATA%\Programs\Python\Python312\python.exe`
-
-### 3. ติดตั้งปลั๊กอิน
+### 2. ติดตั้งปลั๊กอิน
 
 ```bash
 claude plugin marketplace add otyping/eduone-plugin
 claude plugin install edu-one@eduone
+claude plugin list        # ต้องเห็น edu-one · enabled
+```
+
+### 3. Python 3.12 + แพ็กเกจ
+
+ต้องเป็น **3.12** เท่านั้น (ผลผลิตเป็นไฟล์เอกสารที่รูปแบบต้องเหมือนกันทุกเครื่อง)
+
+```bash
+python --version
+```
+
+> Windows: ถ้า `python` เปิดหน้า Microsoft Store แปลว่า alias ชี้ผิด ให้ใช้ path เต็ม
+> `%LOCALAPPDATA%\Programs\Python\Python312\python.exe`
+
+ติดตั้งแพ็กเกจจาก `requirements.txt` ที่มากับปลั๊กอิน (ได้มาจากขั้นที่ 2 แล้ว):
+
+**Windows (PowerShell)**
+```powershell
+$p = (Get-ChildItem "$env:USERPROFILE\.claude\plugins\cache\eduone\edu-one" -Directory | Select-Object -Last 1).FullName
+pip install -r "$pequirements.txt"
+```
+
+**macOS / Linux**
+```bash
+pip install -r "$(ls -d ~/.claude/plugins/cache/eduone/edu-one/*/ | tail -1)requirements.txt"
 ```
 
 ### 4. สร้างโฟลเดอร์งานของตัวเอง
@@ -47,24 +68,43 @@ claude plugin install edu-one@eduone
 mkdir eduone-work && cd eduone-work
 ```
 
-ถ้าอยากวางไว้ที่อื่น ตั้ง `EDUONE_WORK_DIR` ชี้ไปที่นั่น
+อยากวางไว้ที่อื่นให้ตั้ง `EDUONE_WORK_DIR` ชี้ไปที่นั่น
 
 ---
 
-## ตรวจว่าติดตั้งครบ
+## ตรวจว่าติดตั้งครบด้วยคำสั่งเดียว
 
-```bash
-claude plugin list                                    # ต้องเห็น edu-one
-python -c "import docx, pptx, fitz, pythainlp, lxml, numpy, yaml, PIL, matplotlib, latex2mathml"
+รันจาก**โฟลเดอร์งาน**ของคุณ:
+
+**Windows (PowerShell)**
+```powershell
+$p = (Get-ChildItem "$env:USERPROFILE\.claude\plugins\cache\eduone\edu-one" -Directory | Select-Object -Last 1).FullName
+python "$p\scripts\doctor.py"
 ```
 
-แล้วเปิด Claude Code ในโฟลเดอร์งาน พิมพ์ `/` — ต้องเห็น `/edu-one` `/content` `/exercise` ครบ
-
-อยากรู้ว่าปลั๊กอินกำลังอ่าน/เขียนที่ไหน:
-
+**macOS / Linux**
 ```bash
-python "$CLAUDE_PLUGIN_ROOT/skills/shared/scripts/_root.py"
+python "$(ls -d ~/.claude/plugins/cache/eduone/edu-one/*/ | tail -1)scripts/doctor.py"
 ```
+
+ตัวตรวจจะบอกทีละข้อว่าอะไรพร้อม อะไรขาด และ**ขาดแล้วต้องพิมพ์อะไรแก้** เช่น
+
+```
+== Python ==
+  [ok]  Python 3.12.10
+== แพ็กเกจที่ pipeline ต้องใช้ ==
+  [ok]  python-docx
+  [แก้] PyMuPDF — ยังไม่ได้ติดตั้ง
+== ไฟล์ของปลั๊กอิน ==
+  [ok]  sub-agent ครบ 16 ตัว
+  [ok]  สกิลครบ 8 ตัว
+  [ok]  หลักสูตรที่มี 4 คู่: m1-math p1-sci p4-english p4-sci
+== โฟลเดอร์งาน ==
+  [ok]  ผลผลิตจะลงที่ ...\eduone-work\Output
+```
+
+ขึ้น **"พร้อมใช้งาน"** เมื่อไร แปลว่าเรียบร้อย · สุดท้ายเปิด Claude Code ในโฟลเดอร์งาน
+แล้วพิมพ์ `/` — ต้องเห็น `/edu-one` `/content` `/exercise` ครบ
 
 ---
 
