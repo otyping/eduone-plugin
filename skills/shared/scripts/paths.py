@@ -146,8 +146,11 @@ def unit_paths(meta: dict) -> dict:
     ใช้กับ /exercise เมื่อผู้ใช้สั่ง "ข้อสอบบทที่ N" (ทั้งบท) แทนที่จะสั่งเป็นราย No.
     """
     ubase = meta["unit_folder"]                      # M1-Math_U4
-    topic_dir = meta["topic_dir"]                    # .../M1-Math_U4/M1-Math_U4_3
-    unit_dir = topic_dir.rsplit("/", 1)[0]           # .../M1-Math_U4
+    # ★ ห้ามหาโฟลเดอร์หน่วยด้วยการถอยขึ้นหนึ่งชั้นจาก topic_dir
+    #   หลักสูตรรายคาบลึกกว่าหนึ่งชั้น (.../M1-Math_U1/M1-Math_U1_4/M1-Math_U1_4_1)
+    #   ถอยชั้นเดียวจะได้โฟลเดอร์ "หัวข้อ" ไม่ใช่ "หน่วย" แล้วข้อสอบระดับบทไปตกผิดที่
+    #   ประกอบจากส่วนที่รู้แน่ ๆ แทน ถูกต้องไม่ว่าโครงจะลึกกี่ชั้น
+    unit_dir = f"Output/{meta['grade_token']}/{meta['subject_token']}/{ubase}"
     ex = f"{unit_dir}/{FOLDERS['exercise']}"
 
     return {
