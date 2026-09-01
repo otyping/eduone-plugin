@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+# eduone-py — เรียกสคริปต์ของ EDU ONE โดยไม่ต้องรู้ว่า Python อยู่ที่ไหน
+#
+#   eduone-py paths.py p4 sci 3
+#   eduone-py build_content.py spec.json out.docx
+#
+# ทำไมต้องมี
+#   1. เดิมสกิลเขียน path ของ python ตายตัวเป็นของ Windows
+#      ("$LOCALAPPDATA/Programs/Python/Python312/python.exe") ใช้บน macOS/Linux ไม่ได้เลย
+#   2. permissions.allow ของ Claude Code เทียบแบบ "ขึ้นต้นด้วย" — คำสั่งที่ขึ้นต้นด้วย
+#      path เต็มซึ่งต่างกันทุกเครื่องจึงตั้งกฎแคบ ๆ ไม่ได้ ต้องเปิดกว้างทั้งหมด
+#      พอมีตัวห่อชื่อคงที่ กฎเหลือบรรทัดเดียว: Bash(eduone-py *)
+#
+# หาตัวเองก่อนเสมอ ไม่พึ่ง env var — ทำงานได้แม้ CLAUDE_PLUGIN_ROOT ไม่ถูกตั้ง
+set -euo pipefail
+
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PLUGIN_ROOT="$(dirname "$HERE")"
+
+die() { printf 'eduone-py: %s\n' "$*" >&2; exit 1; }
+
+# ---- หา Python 3.12 ----
+is312() { [ -x "$1" ] || command -v "$1" >/dev/null 2>&1 || return 1
+          "$1" -c 'import sys; raise SystemExit(0 if sys.version_info[:2]==(3,12) else 1)' 2>/dev/null; }
+
+PY=""
+for cand in \
+    "${EDUONE_PYTHON:-}" \
+    "$LOCALAPPDATA/Programs/Python/Python312/python.exe" \
+    python3.12 python3 python py; do
+    [ -n "$cand" ] || continue
+    if is312 "$cand"; then PY="$cand"; break; fi
+done
+# py launcher ของ Windows เรียกเวอร์ชันเจาะจงได้
+if [ -z "$PY" ] && command -v py >/dev/null 2>&1 && py -3.12 -c "pass" 2>/dev/null; then
+    PY="py -3.12"
+fi
+[ -n "$PY" ] || die "ไม่พบ Python 3.12 — ติดตั้งก่อน หรือตั้ง EDUONE_PYTHON ให้ชี้ไปที่ python.exe ของ 3.12"
+
+# ---- หาสคริปต์ ----
+[ $# -ge 1 ] || die "ต้องบอกชื่อสคริปต์ เช่น  eduone-py paths.py p4 sci 3"
+NAME="$1"; shift
+
+SCRIPT=""
+if [ -f "$NAME" ]; then
+    SCRIPT="$NAME"                                   # ส่ง path มาเต็ม ๆ ก็ได้
+else
+    for d in "$PLUGIN_ROOT/skills/shared/scripts" "$PLUGIN_ROOT"/skills/*/scripts; do
+        if [ -f "$d/$NAME" ]; then SCRIPT="$d/$NAME"; break; fi
+    done
+fi
+[ -n "$SCRIPT" ] || die "ไม่พบสคริปต์ '$NAME' ในปลั๊กอินที่ $PLUGIN_ROOT"
+
+export PYTHONIOENCODING="${PYTHONIOENCODING:-utf-8}"   # กันภาษาไทยเพี้ยนบน console Windows
+exec $PY "$SCRIPT" "$@"
