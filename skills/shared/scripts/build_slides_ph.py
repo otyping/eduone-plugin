@@ -14,7 +14,7 @@ build_slides_ph.py — เอนจินสไลด์ "ทางเลือ�
 
 ใช้ผ่าน: build_slides.py <spec> <out> --engine placeholders
 
-ใช้ Python 3.12: %LOCALAPPDATA%\\Programs\\Python\\Python312\\python.exe
+รันผ่านตัวห่อ: eduone-py <ชื่อไฟล์นี้> <args>  (หา Python 3.12 ให้เองทุก OS)
 """
 from __future__ import annotations
 

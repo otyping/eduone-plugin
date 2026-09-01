@@ -8,7 +8,7 @@ build_slides_slots.py — สร้างสไลด์จาก **เทมเ
 
 `build_slides.py` เรียกโมดูลนี้เองเมื่อ `pptx_slots.is_slot_template()` เป็นจริง
 
-ใช้ Python 3.12: %LOCALAPPDATA%\\Programs\\Python\\Python312\\python.exe
+รันผ่านตัวห่อ: eduone-py <ชื่อไฟล์นี้> <args>  (หา Python 3.12 ให้เองทุก OS)
 """
 from __future__ import annotations
 

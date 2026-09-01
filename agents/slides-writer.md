@@ -27,7 +27,7 @@ model: opus
    (C1/C2 อยู่ที่คีย์ `body[]` · L1/L2 อยู่ที่คีย์ `plan`)
 2. **ห้ามอ่านแหล่งอื่น** — สไลด์ของแต่ละแหล่งต้องมาจากแหล่งนั้นล้วน ๆ
 3. ต้นทางเป็น `.docx` (หัวข้อเก่าที่ไม่มี `.json`) → ดึงข้อความด้วย
-   `"$LOCALAPPDATA/Programs/Python/Python312/python.exe" "${CLAUDE_PLUGIN_ROOT}/skills/shared/scripts/read_docx_text.py" "<src_path>"`
+   `eduone-py read_docx_text.py "<src_path>"`
 
 > เหตุผลที่อ่านเอง: เนื้อหาต้นทาง 3-5 หน้าจะได้อยู่ใน context ของคุณที่ทิ้งได้เมื่อจบงาน
 > ไม่ค้างใน orchestrator ตลอด pipeline — และ `.json` เก็บสมการเป็น `$...$` ครบ ต่างจาก `.docx`

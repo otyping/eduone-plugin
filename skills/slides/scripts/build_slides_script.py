@@ -18,7 +18,7 @@ build_slides_script.py — เอกสาร "สคริปต์สไลด
 ใช้:
   build_slides_script.py <gradeSlug> <subjectSlug> <No> [--name "ชื่อไฟล์"]
 
-ใช้ Python 3.12: %LOCALAPPDATA%\\Programs\\Python\\Python312\\python.exe
+รันผ่านตัวห่อ: eduone-py <ชื่อไฟล์นี้> <args>  (หา Python 3.12 ให้เองทุก OS)
 """
 from __future__ import annotations
 

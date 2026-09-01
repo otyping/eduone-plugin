@@ -19,7 +19,7 @@ bookscan_index.py — สารบัญค้นได้ของหนัง�
 index เก็บเป็นจุดสอบเทียบหลายจุด (`offsets`) ถ้าเจอหน้าคลาดเคลื่อน ±1
 ให้ดึงหน้าข้างเคียงเพิ่ม แล้ว `calibrate` บันทึกค่าที่ถูกไว้
 
-ใช้ Python 3.12: %LOCALAPPDATA%\\Programs\\Python\\Python312\\python.exe
+รันผ่านตัวห่อ: eduone-py <ชื่อไฟล์นี้> <args>  (หา Python 3.12 ให้เองทุก OS)
 """
 import argparse
 import os

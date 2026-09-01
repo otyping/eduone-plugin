@@ -20,6 +20,11 @@ if "%~1"=="" (
   echo eduone-py: ต้องบอกชื่อสคริปต์ เช่น  eduone-py paths.py p4 sci 3 1>&2
   exit /b 1
 )
+REM อาร์กิวเมนต์แรกขึ้นต้นด้วย - คือตัวเลือกของ python เอง (-m, -c) ส่งต่อตรง ๆ
+echo %~1| findstr /b /c:"-" >nul && (
+  %PY% %*
+  exit /b %errorlevel%
+)
 set "NAME=%~1"
 shift
 

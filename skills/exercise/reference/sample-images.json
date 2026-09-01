@@ -1,6 +1,6 @@
 {
   "note": "แกลเลอรีตัวอย่างรูปทุกชนิดที่ gen_math_images.py วาดได้ — ใช้เป็นทั้งเอกสารอ้างอิงและชุดทดสอบ. รันแล้วเปิดดูไฟล์ใน tmp/sample-images/ (ไม่ขึ้น git, สร้างใหม่ได้เสมอ)",
-  "howto": "$env:PYTHONIOENCODING='utf-8'; & $PY .claude\\skills\\exercise\\scripts\\gen_math_images.py .claude\\skills\\exercise\\reference\\sample-images.json --out-dir tmp\\sample-images",
+  "howto": "eduone-py gen_math_images.py ${CLAUDE_PLUGIN_ROOT}/skills/exercise/reference/sample-images.json --out-dir tmp\\sample-images",
   "images": [
     {
       "file": "01_plane_point.png",

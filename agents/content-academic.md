@@ -115,8 +115,7 @@ model: opus
 2. ตรวจสเปกด้วยตัวเองก่อนส่ง — **ต้อง exit 0 และไม่มี WARN**:
    ```bash
    export PYTHONIOENCODING=utf-8
-   "$LOCALAPPDATA/Programs/Python/Python312/python.exe" \
-     "${CLAUDE_PLUGIN_ROOT}/skills/shared/scripts/validate_spec.py" content "<content_c1_json>" --strict
+   eduone-py validate_spec.py content "<content_c1_json>" --strict
    ```
 3. รายงานสั้น ๆ ว่าเขียนไฟล์ใด, จำนวนหัวข้อ, ครอบคลุม OBJ/COMP ข้อใดบ้าง, ประเมินความยาวคร่าว ๆ,
    และ (ถ้ามี research) ข้อที่ขัดแย้งกับความรู้ทั่วไปหรือข้อที่ไม่มีแหล่งรองรับ

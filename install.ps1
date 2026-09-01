@@ -168,6 +168,36 @@ if (Test-Path $w) {
     }
 }
 
+# ---------------------------------------------------------------- กฎอนุญาต
+Head "กฎอนุญาตให้รันสคริปต์โดยไม่ต้องถามทุกครั้ง"
+Say "  ปกติ Claude Code จะถามอนุญาตทุกครั้งที่รันคำสั่ง ซึ่งจะถามบ่อยมากตอนผลิตสื่อ"
+Say "  กฎนี้อนุญาตเฉพาะ eduone-py (ตัวห่อของ EDU ONE) ไม่ได้เปิดให้รันอะไรก็ได้"
+$settingsDir = Join-Path $w ".claude"
+$settingsFile = Join-Path $settingsDir "settings.json"
+if (Test-Path $settingsFile) {
+    $cur = Get-Content -Raw $settingsFile
+    if ($cur -match "eduone-py") {
+        Good "ตั้งไว้แล้ว: $settingsFile"
+    } else {
+        Miss "มี settings.json อยู่แล้วแต่ยังไม่มีกฎนี้ - ไม่แก้ทับให้ กันของเดิมหาย"
+        Say "  เพิ่มบรรทัดนี้ในส่วน permissions.allow เอง:  \"Bash(eduone-py *)\""
+    }
+} else {
+    if (Ask "  ตั้งกฎอนุญาตให้ไหม (เขียนที่ $settingsFile)") {
+        New-Item -ItemType Directory -Force $settingsDir | Out-Null
+        $json = @"
+{
+  "permissions": {
+    "allow": [
+      "Bash(eduone-py *)"
+    ]
+  }
+}
+"@
+        [System.IO.File]::WriteAllText($settingsFile, $json, (New-Object System.Text.UTF8Encoding $false))
+        Good "เขียนแล้ว: $settingsFile"
+    }
+}
 # ---------------------------------------------------------------- ตรวจผล
 Head "ตรวจผลรวม"
 $plug = Get-PluginDir

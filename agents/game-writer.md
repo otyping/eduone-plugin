@@ -18,8 +18,7 @@ model: opus
 1. **Build** (ถ้ายังไม่มี game.json — รอบแรก):
    ```bash
    export PYTHONIOENCODING=utf-8
-   PY="$LOCALAPPDATA/Programs/Python/Python312/python.exe"
-   "$PY" "${CLAUDE_PLUGIN_ROOT}/skills/game/scripts/build_game_json.py" \
+   eduone-py build_game_json.py \
      "<ex_json จาก orchestrator/paths.py>" \
      "<game_json จาก orchestrator/paths.py>" \
      --base "<BASE>" --header "<header>" --title "เรื่อง<topic_name>"

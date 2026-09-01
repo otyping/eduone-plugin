@@ -12,7 +12,7 @@ science_diagrams.py — แผนภาพวิทยาศาสตร์ส�
   flow       กล่อง + ลูกศร — ห่วงโซ่อาหาร วัฏจักร ขั้นตอนการทดลอง ผังความคิด
 
 ไม่เรียกตรง ๆ — เรียกผ่าน gen_math_images.py ซึ่ง merge DRAWERS ของไฟล์นี้เข้าไป
-ใช้ Python 3.12: %LOCALAPPDATA%\\Programs\\Python\\Python312\\python.exe
+รันผ่านตัวห่อ: eduone-py <ชื่อไฟล์นี้> <args>  (หา Python 3.12 ให้เองทุก OS)
 """
 import math
 

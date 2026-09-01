@@ -39,7 +39,7 @@ config จาก environment (key ไม่อยู่ในโค้ด/repo):
 
 ไฟล์เสียงอยู่ใต้ Output/ จึง gitignored — regenerate ใหม่ได้เสมอจาก audio-src.json (track git)
 
-ใช้ Python 3.12: %LOCALAPPDATA%\\Programs\\Python\\Python312\\python.exe  (ไม่มี requests -> urllib)
+รันผ่านตัวห่อ: eduone-py <ชื่อไฟล์นี้> <args>  (หา Python 3.12 ให้เองทุก OS)  (ไม่มี requests -> urllib)
 """
 import argparse
 import json

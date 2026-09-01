@@ -31,7 +31,7 @@ read_docx_text.py — ดึงข้อความจาก .docx ออกม
 
 exit 0 = อ่านได้ · exit 2 = ไม่พบไฟล์/อ่านไม่ได้
 
-ใช้ Python 3.12: %LOCALAPPDATA%\\Programs\\Python\\Python312\\python.exe
+รันผ่านตัวห่อ: eduone-py <ชื่อไฟล์นี้> <args>  (หา Python 3.12 ให้เองทุก OS)
 ตั้ง PYTHONIOENCODING=utf-8 ก่อนรัน
 """
 from __future__ import annotations

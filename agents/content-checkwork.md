@@ -72,12 +72,11 @@ header, obj, comp, grade, unit_name, topic_name, ไฟล์โครงสร�
 - ตรวจ JSON parse ได้:
   ```bash
   export PYTHONIOENCODING=utf-8
-  "$LOCALAPPDATA/Programs/Python/Python312/python.exe" -m json.tool <file.json> > /dev/null
+  eduone-py -m json.tool <file.json> > /dev/null
   ```
 - ถ้ามี .docx แล้ว อ่านผล verify ได้ (ไม่ build/แก้):
   ```bash
-  "$LOCALAPPDATA/Programs/Python/Python312/python.exe" \
-    "${CLAUDE_PLUGIN_ROOT}/skills/shared/scripts/verify_docx.py" content <c1.json> <c1.docx>
+  eduone-py verify_docx.py content <c1.json> <c1.docx>
   ```
 
 ## รูปแบบผลลัพธ์ (บรรทัดสุดท้ายต้องชัด)

@@ -11,7 +11,7 @@ media_cache.py — resolve URL/พาธไฟล์สื่อ (รูป/เ�
 - แคชด้วย sha1 ของ URL -> โหลดซ้ำครั้งต่อไปไม่ต้องต่อเน็ต (build ซ้ำได้แบบออฟไลน์)
 - Word ฝัง .webp ไม่ได้ -> แปลงเป็น .png ให้อัตโนมัติ (Pillow)
 
-ใช้ Python 3.12: %LOCALAPPDATA%\\Programs\\Python\\Python312\\python.exe
+รันผ่านตัวห่อ: eduone-py <ชื่อไฟล์นี้> <args>  (หา Python 3.12 ให้เองทุก OS)
 """
 import hashlib
 import os

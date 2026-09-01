@@ -24,7 +24,7 @@ model: opus
   นี่คือ **source เดียวที่ใช้ออกข้อสอบ** — ห้ามถามนอกเนื้อหา
   · เนื้อความอยู่ที่คีย์ `body[]` · สมการเก็บเป็น `$...$` LaTeX ใช้ต่อได้ทันที
   · ได้ path เป็น `.docx` (หัวข้อเก่าไม่มี `.json`) → ดึงข้อความด้วย
-    `"$LOCALAPPDATA/Programs/Python/Python312/python.exe" "${CLAUDE_PLUGIN_ROOT}/skills/shared/scripts/read_docx_text.py" "<path>"`
+    `eduone-py read_docx_text.py "<path>"`
   · **ห้ามใช้ `p.text` ของ python-docx เอง** — มันทำสมการหายทั้งไฟล์เงียบ ๆ
 - path ปลายทาง: `ex_json` (จาก `paths.py`) เช่น `Output/.../3. Exercise/{BASE}_ex.json`
 - (ถ้ามี) หน้าหนังสือจาก BookScan ที่ orchestrator ดึงมาให้เป็นภาพ — ใช้เป็นข้อมูลประกอบได้
@@ -90,10 +90,9 @@ model: opus
 6. Self-check ตามหัวข้อ 7 ของ prompt-master
 7. เขียนไฟล์ด้วย Write แล้วตรวจ 2 อย่าง (ต้องผ่านทั้งคู่ก่อนส่ง):
    ```powershell
-   $PY = "$env:LOCALAPPDATA\Programs\Python\Python312\python.exe"
-   $env:PYTHONIOENCODING = "utf-8"
-   & $PY -m json.tool "<ex_json>" > $null                              # JSON parse ผ่าน
-   & $PY .claude\skills\shared\scripts\check_math.py "<ex_json>"       # สัญลักษณ์ถูก (exit 0)
+      $env:PYTHONIOENCODING = "utf-8"
+   eduone-py -m json.tool "<ex_json>" > $null                              # JSON parse ผ่าน
+   eduone-py check_math.py "<ex_json>"       # สัญลักษณ์ถูก (exit 0)
    ```
    `check_math.py` FAIL = แก้แล้วรันใหม่จนผ่าน (มันจับ `3/4`, `x^2`, `H2O`, `<=`, `$` ไม่ครบคู่,
    สูตรที่แปลงเป็น Equation ไม่ได้ และไทยที่หลุดเข้าไปใน `$...$`)

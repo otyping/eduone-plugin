@@ -41,7 +41,7 @@ model: opus
 อ่านทั้ง 2 ไฟล์ด้วย Read. ตรวจ parse ด้วย Bash:
 ```bash
 export PYTHONIOENCODING=utf-8
-"$LOCALAPPDATA/Programs/Python/Python312/python.exe" -m json.tool \
+eduone-py -m json.tool \
   "<orchestrator path>/2. LessonPlan/<BASE>_L1.json" > /dev/null && echo "L1 JSON OK"
 ```
 เทียบ OBJ/COMP กับ metadata ทีละข้อ. รวมเวลากิจกรรมด้วยมือเทียบ period_minutes.

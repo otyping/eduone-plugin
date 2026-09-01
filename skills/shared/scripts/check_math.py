@@ -14,7 +14,7 @@ check_math.py — ตรวจสัญลักษณ์คณิต/วิท�
 exit 0 = ผ่าน / 1 = พบปัญหา / 2 = usage
 รองรับทั้ง {BASE}_ex.json (questions[]) และ JSON อื่น ๆ (ไล่ทุก string ในไฟล์)
 
-ใช้ Python 3.12: %LOCALAPPDATA%\\Programs\\Python\\Python312\\python.exe
+รันผ่านตัวห่อ: eduone-py <ชื่อไฟล์นี้> <args>  (หา Python 3.12 ให้เองทุก OS)
 """
 import argparse
 import json

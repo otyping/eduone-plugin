@@ -13,7 +13,7 @@ build_media_brief.py — สร้าง "ใบสั่งผลิตสื�
   build_media_brief.py <ex.json> [--base BASE] [--brief OUT.md] [--audio-src OUT.json]
                        [--title "เรื่อง ..."]
 
-ใช้ Python 3.12: %LOCALAPPDATA%\\Programs\\Python\\Python312\\python.exe
+รันผ่านตัวห่อ: eduone-py <ชื่อไฟล์นี้> <args>  (หา Python 3.12 ให้เองทุก OS)
 """
 import argparse
 import json

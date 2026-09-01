@@ -141,10 +141,8 @@ JSON คือ **สัญญาร่วม** ระหว่างสองร
 
 ## ตรวจงานตัวเองก่อนส่ง (บังคับ)
 
-```powershell
-$env:PYTHONIOENCODING="utf-8"
-& "$env:LOCALAPPDATA\Programs\Python\Python312\python.exe" `
-  ".claude\skills\shared\scripts\check_math.py" "<ไฟล์ ex.json>"
+```
+eduone-py check_math.py "<ไฟล์ ex.json>"
 ```
 ต้อง **exit 0** — สคริปต์จะจับ: สูตรที่แปลงเป็น Equation ไม่ได้ · `$` ไม่ครบคู่ ·
 ไทยหลุดเข้าไปใน `$...$` · **คำสั่งนอก whitelist** · **สัญกรณ์คณิตหลุดออกนอก `$...$`** ·

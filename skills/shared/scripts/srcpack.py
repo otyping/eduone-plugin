@@ -17,7 +17,7 @@ srcpack.py — สร้าง "source pack" ให้ agent ปลายน้�
 exit 0 = สร้างได้ (ถึงจะไม่มี digest ก็ยังสร้างจากหน้าปก+โครงหัวข้อให้)
 exit 2 = อ่านไฟล์ไม่ได้
 
-ใช้ Python 3.12: %LOCALAPPDATA%\\Programs\\Python\\Python312\\python.exe
+รันผ่านตัวห่อ: eduone-py <ชื่อไฟล์นี้> <args>  (หา Python 3.12 ให้เองทุก OS)
 """
 from __future__ import annotations
 

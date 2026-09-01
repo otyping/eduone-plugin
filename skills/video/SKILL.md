@@ -17,13 +17,13 @@ description: สร้างวิดีโอสื่อการเรีย�
 ### STEP 1 — Lookup token
 ```bash
 export PYTHONIOENCODING=utf-8
-"$LOCALAPPDATA/Programs/Python/Python312/python.exe" "${CLAUDE_PLUGIN_ROOT}/skills/shared/scripts/no_to_token.py" <gradeSlug> <subjectSlug> <No>
+eduone-py no_to_token.py <gradeSlug> <subjectSlug> <No>
 ```
 เก็บ `base` (Title-case เช่น `P1-Sci_U1_1`), `header`, `lang`, `topic_name`, `obj[]`, `comp[]`, `topic_dir`, ระดับชั้น
 เรียก `paths.py` เพื่อรับ path ที่แน่นอน (ห้ามต่อ path เอง):
 ```bash
 export PYTHONIOENCODING=utf-8
-"$LOCALAPPDATA/Programs/Python/Python312/python.exe" "${CLAUDE_PLUGIN_ROOT}/skills/shared/scripts/paths.py" <gradeSlug> <subjectSlug> <No>
+eduone-py paths.py <gradeSlug> <subjectSlug> <No>
 ```
 ได้ JSON keys: `video_json`, `video_mp4`, `video_audio_dir`, **`content_srcpack_md`** (source ที่ใช้จริง),
 `content_c1_json`, `content_c1_docx` (สำรอง), `topic_dir`, `dirs{...}` ฯลฯ
@@ -55,8 +55,8 @@ video-writer ต้อง **อ่าน `${CLAUDE_PLUGIN_ROOT}/skills/video/ref
 > `${CLAUDE_PLUGIN_ROOT}/skills/shared/reference/external-services.md`
 ```bash
 export PYTHONIOENCODING=utf-8
-"$LOCALAPPDATA/Programs/Python/Python312/python.exe" "${CLAUDE_PLUGIN_ROOT}/skills/video/scripts/tts_render.py" <video_json> <video_audio_dir>
-"$LOCALAPPDATA/Programs/Python/Python312/python.exe" "${CLAUDE_PLUGIN_ROOT}/skills/video/scripts/video_assemble.py" <video_json> <video_mp4>
+eduone-py tts_render.py <video_json> <video_audio_dir>
+eduone-py video_assemble.py <video_json> <video_mp4>
 ```
 (`<video_json>`, `<video_audio_dir>`, `<video_mp4>` = ค่าจาก `paths.py`; ไฟล์ narration อยู่ใน `5. Video/{BASE}_video_audio/`, mp4 อยู่ใน `5. Video/` ร่วมกับ json)
 **STUB**: ยังไม่มี API/asset จริง จะเขียน `<out>.PENDING` placeholder

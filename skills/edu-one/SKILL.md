@@ -77,9 +77,7 @@ description: MASTER orchestrator ของ EDU ONE (สพฐ.) — รับ (�
 
 ### 1) Lookup metadata (ครั้งเดียว ใช้ร่วมกัน)
 ```bash
-export PYTHONIOENCODING=utf-8
-"$LOCALAPPDATA/Programs/Python/Python312/python.exe" \
-  "${CLAUDE_PLUGIN_ROOT}/skills/shared/scripts/no_to_token.py" <gradeSlug> <subjectSlug> <No>
+eduone-py no_to_token.py <gradeSlug> <subjectSlug> <No>
 ```
 จด `base` (Title-case เช่น `P1-Sci_U1_1`), `header`, `grade_token`, `subject_token`, `topic_dir`. ใช้กับทุก agent (BASE/header เดียวกัน). **แต่ละ sub-skill resolve path ของตัวเองผ่าน `paths.py <gradeSlug> <subjectSlug> <No>`** — orchestrator ไม่ต้องประกอบ path เอง.
 

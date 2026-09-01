@@ -39,7 +39,7 @@ model: opus
 - `style`: คำอธิบายสไตล์เพลง (อารมณ์/แนว/BPM/เครื่องดนตรี) สำหรับ Suno
 
 ## การบันทึก
-ใช้ Bash + `"$LOCALAPPDATA/Programs/Python/Python312/python.exe"` พร้อม `export PYTHONIOENCODING=utf-8` หากต้องอ่าน docx
+ใช้ Bash + `eduone-py` (ตั้ง utf-8 ให้เองแล้ว) หากต้องอ่าน docx
 สร้างโฟลเดอร์ปลายทางหากยังไม่มี แล้วเขียนไฟล์ด้วย Write
 ตอบกลับสั้น ๆ (ไทย): path ของ artifact + ยืนยันผ่าน self-check 7 STEP
 

@@ -98,14 +98,13 @@
 
 ### ดูตัวอย่างรูปทุกชนิดก่อนเขียน spec
 ```powershell
-& $PY .claude\skills\exercise\scripts\gen_math_images.py `
-      .claude\skills\exercise\reference\sample-images.json --out-dir tmp\sample-images
+eduone-py gen_math_images.py "${CLAUDE_PLUGIN_ROOT}/skills/exercise/reference/sample-images.json" --out-dir tmp\sample-images
 ```
 `sample-images.json` มีตัวอย่างครบทุก `type` (track git) — รูปที่ได้อยู่ใน `tmp/` ไม่ขึ้น git สร้างใหม่ได้เสมอ
 
 **วิธีทำ**: เขียน `{BASE}_images.json` ไว้ข้าง ๆ `{BASE}_ex.json` แล้วรัน
 ```powershell
-& $PY .claude\skills\exercise\scripts\gen_math_images.py "<...>/{BASE}_images.json"
+eduone-py gen_math_images.py "<...>/{BASE}_images.json"
 ```
 ไฟล์จะออกที่ `{BASE}_media/` และ **`build_exercise.py` หยิบไปฝังใน .docx ให้เองอัตโนมัติ**
 โดยที่ `imageUrl` ใน JSON **ยังว่างไว้** เพื่อรอ URL จาก CDN ตามปกติ

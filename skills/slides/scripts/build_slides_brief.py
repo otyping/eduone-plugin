@@ -12,7 +12,7 @@ build_slides_brief.py — ใบสั่งผลิตรูปประกอ
 ใช้:
   build_slides_brief.py <slides.json> [--out OUT.md]
 
-ใช้ Python 3.12: %LOCALAPPDATA%\\Programs\\Python\\Python312\\python.exe
+รันผ่านตัวห่อ: eduone-py <ชื่อไฟล์นี้> <args>  (หา Python 3.12 ให้เองทุก OS)
 """
 from __future__ import annotations
 
@@ -51,9 +51,8 @@ HOWTO = """## ผลิตเสร็จแล้วทำอย่างไร
 
 ```bash
 export PYTHONIOENCODING=utf-8
-PY="$LOCALAPPDATA/Programs/Python/Python312/python.exe"
-"$PY" "${CLAUDE_PLUGIN_ROOT}/skills/slides/scripts/fill_slides_images.py" "{spec}"
-"$PY" "${CLAUDE_PLUGIN_ROOT}/skills/shared/scripts/build_slides.py" "{spec}" "{pptx}"
+eduone-py fill_slides_images.py "{spec}"
+eduone-py build_slides.py "{spec}" "{pptx}"
 ```
 
 ถ้าอัปโหลดขึ้น CDN แล้ว ให้เก็บ URL เป็นไฟล์ข้อความบรรทัดละ 1 URL แล้วส่งเป็นอาร์กิวเมนต์ที่สองแทน

@@ -40,9 +40,7 @@ description: >-
 
 ### (a) Lookup metadata + BASE
 ```bash
-export PYTHONIOENCODING=utf-8
-"$LOCALAPPDATA/Programs/Python/Python312/python.exe" \
-  "${CLAUDE_PLUGIN_ROOT}/skills/shared/scripts/no_to_token.py" <grade_slug> <subject_slug> <No>
+eduone-py no_to_token.py <grade_slug> <subject_slug> <No>
 ```
 ได้ JSON: `grade, grade_slug, subject, subject_slug, subject_code, period_minutes,
 lang, no, unit, unit_name, order, topic_name, obj[], comp[], base, header`
@@ -66,9 +64,7 @@ lang, no, unit, unit_name, order, topic_name, obj[], comp[], base, header`
 
 **ดึง path ที่แน่นอนด้วย `paths.py`** (อย่าประกอบ path เอง):
 ```bash
-export PYTHONIOENCODING=utf-8
-"$LOCALAPPDATA/Programs/Python/Python312/python.exe" \
-  "${CLAUDE_PLUGIN_ROOT}/skills/shared/scripts/paths.py" <grade_slug> <subject_slug> <No>
+eduone-py paths.py <grade_slug> <subject_slug> <No>
 ```
 ได้ JSON keys ที่ใช้ใน skill นี้: `content_c1_json`, `content_c1_docx`, `content_c2_json`, `content_c2_docx`, `topic_dir`, `dirs{...}`
 ทุกไฟล์อยู่ใต้ต้นไม้เดียว:
@@ -131,9 +127,7 @@ unit_name, grade เพื่อปรับระดับภาษา), path �
 ### (c2) Gate อัตโนมัติของ C1 (บังคับ)
 ```bash
 export PYTHONIOENCODING=utf-8
-PY="$LOCALAPPDATA/Programs/Python/Python312/python.exe"
-SP=${CLAUDE_PLUGIN_ROOT}/skills/shared/scripts
-"$PY" "$SP/validate_spec.py" content "<content_c1_json>"
+eduone-py validate_spec.py content "<content_c1_json>"
 ```
 ตรวจ: หน้าปก 6 แถวเรียงถูก · `mode_label` · ชนิด block · ตารางคอลัมน์เท่ากัน ·
 สัญลักษณ์คณิต (เรียก `check_math` ให้ในตัว) · ไม่มี emoji/ZWSP ค้าง
@@ -153,7 +147,7 @@ SP=${CLAUDE_PLUGIN_ROOT}/skills/shared/scripts
 
 ### (d1) สร้าง source pack ทันทีที่ C1 ผ่าน (สคริปต์ ไม่ใช้โมเดล)
 ```bash
-"$PY" "$SP/srcpack.py" "<content_c1_json>" "<content_srcpack_md>"
+eduone-py srcpack.py "<content_c1_json>" "<content_srcpack_md>"
 ```
 ย่อ C1 เหลือ ~20% จาก `digest` ที่ `content-academic` เขียนไว้ (ไม่ต้องเรียกโมเดลใหม่)
 → **แผนการสอน · เพลง · วิดีโอ อ่านไฟล์นี้แทน C1 เต็ม** และทุกสื่อยึดศัพท์/ตัวเลขชุดเดียวกัน
@@ -171,7 +165,7 @@ _"ใช้ศัพท์เทคนิค/ตัวเลข/ตัวอย�
 
 ### (d3) Gate + ตรวจ C2 (loop ≤ 2 รอบ)
 ```bash
-"$PY" "$SP/validate_spec.py" content "<content_c2_json>" --ref "<content_c1_json>"
+eduone-py validate_spec.py content "<content_c2_json>" --ref "<content_c1_json>"
 ```
 `--ref` บังคับให้หน้าปกของ C2 ตรงกับ C1 ทุกตัวอักษร — **exit ≠ 0 → ให้ `content-narrative` แก้ก่อน**
 
@@ -185,17 +179,14 @@ _"ใช้ศัพท์เทคนิค/ตัวเลข/ตัวอย�
 ใช้ path ที่ได้จาก `paths.py` (`content_c1_json`/`content_c1_docx` และ C2). โฟลเดอร์ปลายทางถูกสร้างโดย `paths.py`/`ensure_dirs(topic_paths(meta))` แล้ว — build/verify script รับ `<json> <out>` ตรง ๆ (signature ไม่เปลี่ยน).
 ```bash
 export PYTHONIOENCODING=utf-8
-PY="$LOCALAPPDATA/Programs/Python/Python312/python.exe"
-SP=${CLAUDE_PLUGIN_ROOT}/skills/shared/scripts
-
-"$PY" "$SP/build_content.py" "<content_c1_json>" "<content_c1_docx>"
-"$PY" "$SP/build_content.py" "<content_c2_json>" "<content_c2_docx>"
+eduone-py build_content.py "<content_c1_json>" "<content_c1_docx>"
+eduone-py build_content.py "<content_c2_json>" "<content_c2_docx>"
 ```
 (ทั้ง `_C1.json/_C1.docx` และ `_C2.json/_C2.docx` อยู่ใน `1. Content/` โฟลเดอร์เดียวกัน — spec co-located กับ render)
 
 ### (f) Verify (tester)
 ```bash
-"$PY" "$SP/verify_docx.py" content "<content_c1_json>" "<content_c1_docx>"
+eduone-py verify_docx.py content "<content_c1_json>" "<content_c1_docx>"
 # ทำซ้ำกับ _C2: "<content_c2_json>" "<content_c2_docx>"
 ```
 ตรวจ A4 / ฟอนต์ / header / footer / page-break + นับหน้า (3–5) ถ้ามี `pywin32`

@@ -14,7 +14,7 @@ slides_media.py — ของใช้ร่วมของงานรูปป
 
 อยู่ที่ shared/ เพราะทั้ง `build_slides.py` (shared) และสคริปต์ใน `slides/scripts/` ต้องใช้ร่วมกัน
 
-ใช้ Python 3.12: %LOCALAPPDATA%\\Programs\\Python\\Python312\\python.exe
+รันผ่านตัวห่อ: eduone-py <ชื่อไฟล์นี้> <args>  (หา Python 3.12 ให้เองทุก OS)
 """
 from __future__ import annotations
 

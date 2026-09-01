@@ -21,18 +21,14 @@ orchestrator ของ Agent 7. แปลงแบบฝึกหัดปรน
 
 ### 1) Lookup metadata
 ```bash
-export PYTHONIOENCODING=utf-8
-"$LOCALAPPDATA/Programs/Python/Python312/python.exe" \
-  "${CLAUDE_PLUGIN_ROOT}/skills/shared/scripts/no_to_token.py" <gradeSlug> <subjectSlug> <No>
+eduone-py no_to_token.py <gradeSlug> <subjectSlug> <No>
 ```
 จด `base` (Title-case เช่น `P1-Sci_U1_1`), `header`, `grade_token`, `subject_token`, `topic_dir`. (ไฟล์ args ดึงจาก paths.py ในขั้นถัดไป.)
 
 ### 2) Resolve paths + ตรวจว่ามีไฟล์แบบฝึกหัด (input ของเกม)
 รัน paths.py เพื่อได้ path เต็มของไฟล์ (อยู่ใต้ `7. Activity/`):
 ```bash
-export PYTHONIOENCODING=utf-8
-"$LOCALAPPDATA/Programs/Python/Python312/python.exe" \
-  "${CLAUDE_PLUGIN_ROOT}/skills/shared/scripts/paths.py" <gradeSlug> <subjectSlug> <No>
+eduone-py paths.py <gradeSlug> <subjectSlug> <No>
 ```
 จด key `ex_json` (อยู่ใน `3. Exercise/` คู่กับ ex.docx) และ `game_json` (อยู่ใน `7. Activity/`) — ทั้งหมดใต้ `Output/<GradeToken>/<SubjectToken>/<GradeToken>-<SubjectToken>_U<unit>/<BASE>/`.
 ต้องมีไฟล์นี้ (จาก paths.py key `ex_json`):
@@ -45,8 +41,7 @@ ls "<ex_json>"
 ### 3) Build game.json
 ```bash
 export PYTHONIOENCODING=utf-8
-PY="$LOCALAPPDATA/Programs/Python/Python312/python.exe"
-"$PY" "${CLAUDE_PLUGIN_ROOT}/skills/game/scripts/build_game_json.py" \
+eduone-py build_game_json.py \
   "<ex_json>" "<game_json>" \
   --base "<BASE>" --header "<header>" --title "เรื่อง<topic_name>"
 ```

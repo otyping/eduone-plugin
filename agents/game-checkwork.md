@@ -43,7 +43,7 @@ model: opus
 อ่าน game.json ด้วย Read. ตรวจ parse + ความสอดคล้องเฉลยด้วย Bash:
 ```bash
 export PYTHONIOENCODING=utf-8
-"$LOCALAPPDATA/Programs/Python/Python312/python.exe" - <<'PY'
+eduone-py - <<'PY'
 import json
 L=("ก","ข","ค","ง")
 g=json.load(open(r"<game_json จาก orchestrator/paths.py — co-located ใน 7. Activity/<BASE>_game.json>",encoding="utf-8"))

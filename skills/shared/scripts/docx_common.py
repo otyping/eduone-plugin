@@ -11,7 +11,7 @@ docx_common.py — ไลบรารีกลางสำหรับสร้�
 - Thai line-break: แทรก ZWSP ตามขอบคำ (pythainlp newmm) + ตั้ง w:lang bidi=th-TH
 
 พอร์ตจากโปรเจกต์ OVEC (build_docx.py ของ lesson-plan + exercise) แล้วรวมเป็นไลบรารีเดียว
-ใช้ Python 3.12: %LOCALAPPDATA%\\Programs\\Python\\Python312\\python.exe
+รันผ่านตัวห่อ: eduone-py <ชื่อไฟล์นี้> <args>  (หา Python 3.12 ให้เองทุก OS)
 """
 import os
 import re

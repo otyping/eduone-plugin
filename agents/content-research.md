@@ -23,13 +23,12 @@ model: opus
 ### 1) BookScan ก่อน
 ```bash
 export PYTHONIOENCODING=utf-8
-PY="$LOCALAPPDATA/Programs/Python/Python312/python.exe"
-"$PY" "${CLAUDE_PLUGIN_ROOT}/skills/shared/scripts/bookscan_index.py" show
-"$PY" "${CLAUDE_PLUGIN_ROOT}/skills/shared/scripts/bookscan_index.py" find "<คำค้นจาก topic_name>" --subject <Subject> --grade <P.x|M.x>
+eduone-py bookscan_index.py show
+eduone-py bookscan_index.py find "<คำค้นจาก topic_name>" --subject <Subject> --grade <P.x|M.x>
 ```
 - เจอ → ดึงหน้าออกมาเป็นภาพแล้ว `Read` **ทีละช่วงสั้น ๆ** (ใช้ `--width 800` พอ ประหยัดกว่าค่าเริ่มต้นมาก)
   ```bash
-  "$PY" "${CLAUDE_PLUGIN_ROOT}/skills/shared/scripts/bookscan_page.py" <book> <ช่วงหน้า> --subject <Subject> --grade <P.x|M.x> --width 800
+  eduone-py bookscan_page.py <book> <ช่วงหน้า> --subject <Subject> --grade <P.x|M.x> --width 800
   ```
 - **ระวังเล่มที่สแกนมาไม่ครบ** (`"partial": true`) — `find` จะขึ้น `⚠ ไม่ได้สแกนมา`
   หน้าที่ไม่มีให้ถือว่า **ไม่มีข้อมูล** ห้ามเดาเนื้อหาแทน

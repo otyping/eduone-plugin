@@ -11,7 +11,7 @@ pptx_common.py — เลเยอร์กลางของสไลด์ .pp
      -> รู้ล่วงหน้าว่าข้อความล้นกรอบไหม เพื่อ **ขึ้นหน้าใหม่ ไม่ใช่ย่อตัวอักษร**
   5. สัญลักษณ์คณิต/วิทย์: $...$ -> run ยกกำลัง/ตัวห้อยจริง (หรือ OMML เมื่อมี \\frac \\sqrt)
 
-ใช้ Python 3.12: %LOCALAPPDATA%\\Programs\\Python\\Python312\\python.exe
+รันผ่านตัวห่อ: eduone-py <ชื่อไฟล์นี้> <args>  (หา Python 3.12 ให้เองทุก OS)
 """
 from __future__ import annotations
 

@@ -18,7 +18,6 @@ orchestrator ของ pipeline แบบฝึกหัด. ออกข้อ�
 
 ## ค่าคงที่
 ```
-$PY = "$env:LOCALAPPDATA\Programs\Python\Python312\python.exe"
 $env:PYTHONIOENCODING = "utf-8"
 ```
 `gradeSlug` ∈ p1..p6, m1..m6 · `subjectSlug` ∈ thai/math/sci/social/health/art/career/english
@@ -29,8 +28,8 @@ $env:PYTHONIOENCODING = "utf-8"
 
 ### 1. Lookup metadata
 ```powershell
-& $PY .claude\skills\shared\scripts\no_to_token.py <gradeSlug> <subjectSlug> <No>
-& $PY .claude\skills\shared\scripts\paths.py <gradeSlug> <subjectSlug> <No>
+eduone-py no_to_token.py <gradeSlug> <subjectSlug> <No>
+eduone-py paths.py <gradeSlug> <subjectSlug> <No>
 ```
 บันทึก `BASE`, `header`, `topic_name`, `obj`, `comp`
 **อย่าประกอบ path เอง** — ใช้คีย์จาก `paths.py`: **`content_c1_json`** (ต้นทางข้อสอบ),
@@ -53,8 +52,8 @@ Test-Path "<content_c1_json>"; Test-Path "<content_c1_docx>"
 
 **(ถ้ามี BookScan ของวิชานี้)** ใช้เป็นข้อมูลประกอบได้:
 ```powershell
-& $PY .claude\skills\shared\scripts\bookscan_index.py find "<คำค้น>" --subject <Subject> --grade <M.x>
-& $PY .claude\skills\shared\scripts\bookscan_page.py <book> <ช่วงหน้า> --subject <Subject> --grade <M.x>
+eduone-py bookscan_index.py find "<คำค้น>" --subject <Subject> --grade <M.x>
+eduone-py bookscan_page.py <book> <ช่วงหน้า> --subject <Subject> --grade <M.x>
 ```
 แล้ว `Read` ไฟล์ภาพที่ได้ ส่งสาระให้ writer (อย่าส่ง path ภาพดิบให้ writer เดาเอง)
 
@@ -65,7 +64,7 @@ Test-Path "<content_c1_json>"; Test-Path "<content_c1_docx>"
 
 ### 3.5 Gate อัตโนมัติก่อนส่ง checkwork (บังคับ)
 ```powershell
-& $PY .claude\skills\shared\scripts\validate_spec.py exercise "<ex_json>"
+eduone-py validate_spec.py exercise "<ex_json>"
 ```
 ตรวจ: โควตา easy/medium/hard ตามจำนวนข้อ · 4 ตัวเลือก/ข้อ · `isTrue` ข้อละ 1 ·
 ไม่มี prefix ก./ข./ค./ง. · ไม่มี "ถูกทุกข้อ/ไม่มีข้อถูก" · `solutionSteps` ครบ ·
@@ -84,20 +83,20 @@ Test-Path "<content_c1_json>"; Test-Path "<content_c1_docx>"
 
 ### 5. สร้างใบสั่งผลิตสื่อ (ข้ามได้ถ้าข้อสอบเป็นข้อความล้วน)
 ```powershell
-& $PY .claude\skills\exercise\scripts\build_media_brief.py "<ex_json>" --base "<BASE>" --title "เรื่อง<topic_name>"
+eduone-py build_media_brief.py "<ex_json>" --base "<BASE>" --title "เรื่อง<topic_name>"
 ```
 ได้ `{BASE}_media-brief.md` (ใบสั่งผลิตรูป) + `{BASE}_audio-src.json` (บทเสียงสำหรับ TTS)
 ถ้าไม่มีสื่อจะพิมพ์ว่าไม่ต้องสร้าง — ถือว่าปกติ
 
 ### 6. Build .docx
 ```powershell
-& $PY .claude\skills\shared\scripts\build_exercise.py "<ex_json>" "<exercise_docx>" --header "<header>" --base "<BASE>"
+eduone-py build_exercise.py "<ex_json>" "<exercise_docx>" --header "<header>" --base "<BASE>"
 ```
 ช่องสื่อที่ยังไม่มี URL จะแสดงเป็นบรรทัดสั่งผลิต `[รูปภาพ] {BASE}_01_Q.png — คำบรรยาย`
 
 ### 7. Verify (tester — ต้อง exit 0)
 ```powershell
-& $PY .claude\skills\shared\scripts\verify_docx.py exercise "<ex_json>" "<exercise_docx>" --header "<header>"
+eduone-py verify_docx.py exercise "<ex_json>" "<exercise_docx>" --header "<header>"
 ```
 exit ≠ 0 → อ่านรายการปัญหา: ปัญหา JSON ส่งกลับ writer (อยู่ในโควตา ≤ 2 รอบเดิม) ·
 ปัญหาการเรนเดอร์แก้ที่ script
@@ -110,9 +109,9 @@ exit ≠ 0 → อ่านรายการปัญหา: ปัญหา JS
 ### 9. (ภายหลัง) เติม URL สื่อ แล้ว build ซ้ำ
 เมื่อผู้ใช้ส่งรายการ URL มา → บันทึกลง `ex_urls_txt` แล้ว
 ```powershell
-& $PY .claude\skills\exercise\scripts\fill_ex_urls.py "<ex_urls_txt>" "<ex_json>" --base "<BASE>"
-& $PY .claude\skills\shared\scripts\build_exercise.py "<ex_json>" "<exercise_docx>" --header "<header>" --base "<BASE>"
-& $PY .claude\skills\shared\scripts\verify_docx.py exercise "<ex_json>" "<exercise_docx>" --header "<header>"
+eduone-py fill_ex_urls.py "<ex_urls_txt>" "<ex_json>" --base "<BASE>"
+eduone-py build_exercise.py "<ex_json>" "<exercise_docx>" --header "<header>" --base "<BASE>"
+eduone-py verify_docx.py exercise "<ex_json>" "<exercise_docx>" --header "<header>"
 ```
 `fill_ex_urls.py` จะ **ตรวจให้ครบก่อนแล้วค่อยเขียน** — ถ้าไฟล์ขาด/ชนิดไม่ตรง จะไม่แตะไฟล์เดิม
 รันซ้ำได้ (URL ที่เติมแล้วคงอยู่)

@@ -21,7 +21,7 @@ description: สร้างสไลด์นำเสนอสื่อกา�
 **ต้องนับหน้าที่ render จริง** เพราะหน้าที่เนื้อหาแน่นเกินกรอบจะถูกแตกเป็นหน้า "(ต่อ)" อัตโนมัติ
 (engine ไม่ย่อตัวอักษร) — วัดจริงแล้วบวมได้ถึง **+63% ถึง +81%** (27 หน้า → 49 · 38 หน้า → 62)
 ```bash
-"$PY" "${CLAUDE_PLUGIN_ROOT}/skills/shared/scripts/build_slides.py" <slides_json> <ไฟล์ชั่วคราว.pptx> --no-embed
+eduone-py build_slides.py <slides_json> <ไฟล์ชั่วคราว.pptx> --no-embed
 ```
 บรรทัดท้ายบอก `(N สไลด์)` = จำนวนจริง · เกินเพดาน → **ลดข้อความต่อหน้าก่อนเสมอ**
 (ตัดหน้าที่ถูกแตก "(ต่อ)" ได้ทีละ 2 หน้า) แล้วค่อยยุบหน้าที่ซ้ำประเด็น แล้วค่อยตัดหน้าที่คุณค่าน้อยสุด
@@ -36,13 +36,13 @@ description: สร้างสไลด์นำเสนอสื่อกา�
 ### STEP 1 — Lookup token
 ```bash
 export PYTHONIOENCODING=utf-8
-"$LOCALAPPDATA/Programs/Python/Python312/python.exe" "${CLAUDE_PLUGIN_ROOT}/skills/shared/scripts/no_to_token.py" <gradeSlug> <subjectSlug> <No>
+eduone-py no_to_token.py <gradeSlug> <subjectSlug> <No>
 ```
 เก็บ `base` (Title-case เช่น `P1-Sci_U1_1`), `header`, `lang`, `topic_name`, `obj[]`, `comp[]`, `topic_dir`, ระดับชั้น
 เรียก `paths.py` เพื่อรับ path ที่แน่นอน (ห้ามต่อ path เอง):
 ```bash
 export PYTHONIOENCODING=utf-8
-"$LOCALAPPDATA/Programs/Python/Python312/python.exe" "${CLAUDE_PLUGIN_ROOT}/skills/shared/scripts/paths.py" <gradeSlug> <subjectSlug> <No>
+eduone-py paths.py <gradeSlug> <subjectSlug> <No>
 ```
 ได้ JSON keys: `slides_json{C1,C2,L1,L2}`, `slides_pptx{C1,C2,L1,L2}`,
 **`content_c1_json`, `content_c2_json`, `plan_l1_json`, `plan_l2_json`** (ต้นทาง 4 แหล่ง),
@@ -66,8 +66,7 @@ ls -l "<content_c1_json>" "<content_c2_json>" "<plan_l1_json>" "<plan_l2_json>"
 
 **3.0) ดึงข้อจำกัดของเทมเพลต — ครั้งเดียว ใช้ผลร่วมกันทุกแหล่ง** (เทมเพลตแบบสเปก LAYOUT เท่านั้น)
 ```bash
-"$LOCALAPPDATA/Programs/Python/Python312/python.exe" \
-  "${CLAUDE_PLUGIN_ROOT}/skills/shared/scripts/pptx_slots.py" --limits "<เทมเพลตของวิชา×ชั้น>"
+eduone-py pptx_slots.py --limits "<เทมเพลตของวิชา×ชั้น>"
 ```
 ได้ตารางทุก LAYOUT: ชื่อช่อง · ขนาดกรอบ · **จำนวนตัวอักษรที่ใส่ได้จริง**
 **แนบผลลัพธ์นี้เข้า prompt ของ slides-writer ทุกตัว** — writer ที่รู้ข้อจำกัดตั้งแต่ต้น
@@ -86,9 +85,7 @@ ls -l "<content_c1_json>" "<content_c2_json>" "<plan_l1_json>" "<plan_l2_json>"
 
 **3.2) Gate อัตโนมัติ (บังคับ) — รันทีละไฟล์ เร็ว ไม่ใช้โมเดล**
 ```bash
-export PYTHONIOENCODING=utf-8
-"$LOCALAPPDATA/Programs/Python/Python312/python.exe" \
-  "${CLAUDE_PLUGIN_ROOT}/skills/shared/scripts/validate_spec.py" slides <slides_json[src]>
+eduone-py validate_spec.py slides <slides_json[src]>
 ```
 ตรวจ: ลำดับ 6 ส่วนบังคับ · vocab ≤ 6 คำ/หน้า 4 คอลัมน์ · `image_prompt` ไม่มีอักษรไทย
 และยาวพอ · **ถ้า src เป็น L1/L2: ไม่มีคำสั่งครู/ศัพท์แผนขึ้นจอ และหน้ากิจกรรมมี `speaker_note`**
@@ -109,10 +106,9 @@ export PYTHONIOENCODING=utf-8
 ### STEP 5 — Build เป็น .pptx จริง (ต่อแหล่ง)
 ```bash
 export PYTHONIOENCODING=utf-8
-PY="$LOCALAPPDATA/Programs/Python/Python312/python.exe"
-"$PY" "${CLAUDE_PLUGIN_ROOT}/skills/shared/scripts/check_math.py"  <slides_json[src]>          # gate สัญลักษณ์
-"$PY" "${CLAUDE_PLUGIN_ROOT}/skills/shared/scripts/build_slides.py" <slides_json[src]> <slides_pptx[src]>
-"$PY" "${CLAUDE_PLUGIN_ROOT}/skills/shared/scripts/verify_pptx.py"  <slides_pptx[src]>         # ต้อง exit 0
+eduone-py check_math.py  <slides_json[src]>          # gate สัญลักษณ์
+eduone-py build_slides.py <slides_json[src]> <slides_pptx[src]>
+eduone-py verify_pptx.py  <slides_pptx[src]>         # ต้อง exit 0
 ```
 (`<slides_json[src]>`, `<slides_pptx[src]>` = ค่าจาก `paths.py`; pptx อยู่ใน `4. Slides/` ร่วมกับ json)
 
@@ -131,7 +127,7 @@ PY="$LOCALAPPDATA/Programs/Python/Python312/python.exe"
 
 ### STEP 5.1 — ใบสั่งผลิตรูป (เมื่อแหล่งนั้นมี `image_prompt`)
 ```bash
-"$PY" "${CLAUDE_PLUGIN_ROOT}/skills/slides/scripts/build_slides_brief.py" <slides_json[src]>
+eduone-py build_slides_brief.py <slides_json[src]>
 ```
 ได้ `slides_brief_md[src]` = `{BASE}_slides_<src>_media-brief.md` (จาก `paths.py`) —
 prompt ภาษาอังกฤษพร้อมคัดลอกไปวาง **Google Nano Banana** (ตัดประโยคสั่งใส่ป้ายไทยออกให้แล้ว
@@ -141,8 +137,8 @@ prompt ภาษาอังกฤษพร้อมคัดลอกไปว�
 ### STEP 5.2 — เติมรูปที่ผลิตเสร็จ ("เติมรูปสไลด์ <ชั้น> <วิชา> no.X")
 ผู้ใช้วางไฟล์รูปลง `slides_media_dir[src]` (`{BASE}_slides_<src>_media/`) หรือส่งรายการ URL มา
 ```bash
-"$PY" "${CLAUDE_PLUGIN_ROOT}/skills/slides/scripts/fill_slides_images.py" <slides_json[src]> [<โฟลเดอร์|urls.txt>]
-"$PY" "${CLAUDE_PLUGIN_ROOT}/skills/shared/scripts/build_slides.py" <slides_json[src]> <slides_pptx[src]>
+eduone-py fill_slides_images.py <slides_json[src]> [<โฟลเดอร์|urls.txt>]
+eduone-py build_slides.py <slides_json[src]> <slides_pptx[src]>
 ```
 - จับคู่ด้วยชื่อไฟล์ `{BASE}_slides_<src>_<NN>.png` (NN = ลำดับหน้าใน `slides[]`)
 - **ตรวจให้ผ่านก่อนแล้วค่อยเขียน** — ชื่อไฟล์เลขผิด/ซ้ำ/ชนิดไม่ใช่รูป = ไม่แตะ json เลย
@@ -151,7 +147,7 @@ prompt ภาษาอังกฤษพร้อมคัดลอกไปว�
 
 **ตรวจด้วยตาเมื่อทำหัวข้อ/วิชาใหม่ครั้งแรก** (ไม่ต้องทำทุกครั้ง):
 ```bash
-"$PY" "${CLAUDE_PLUGIN_ROOT}/skills/shared/scripts/embed_fonts_pptx.py" --png <slides_pptx[src]> <โฟลเดอร์ png>
+eduone-py embed_fonts_pptx.py --png <slides_pptx[src]> <โฟลเดอร์ png>
 ```
 แล้ว `Read` ไฟล์ png ดูว่าข้อความไม่ทับกรอบตกแต่ง · ตัดคำถูก · สระ/วรรณยุกต์ไม่โดนตัด
 

@@ -17,7 +17,7 @@ description: สร้างเพลงประกอบสื่อการ�
 ### STEP 1 — Lookup token
 ```bash
 export PYTHONIOENCODING=utf-8
-"$LOCALAPPDATA/Programs/Python/Python312/python.exe" "${CLAUDE_PLUGIN_ROOT}/skills/shared/scripts/no_to_token.py" <gradeSlug> <subjectSlug> <No>
+eduone-py no_to_token.py <gradeSlug> <subjectSlug> <No>
 ```
 ได้ JSON: `grade, grade_slug, subject, subject_slug, period_minutes, lang, no, unit, unit_name, order, topic_name, obj[], comp[], base, header`
 - เก็บค่า `base` (Title-case `<GradeToken>-<SubjectToken>_U<unit>_<order>` เช่น `P1-Sci_U1_1`), `grade_token`, `subject_token`, `topic_dir` และ `lang` ไว้ใช้ต่อ
@@ -25,7 +25,7 @@ export PYTHONIOENCODING=utf-8
 - เรียก `paths.py` เพื่อรับ path ที่แน่นอน (ห้ามต่อ path เอง):
 ```bash
 export PYTHONIOENCODING=utf-8
-"$LOCALAPPDATA/Programs/Python/Python312/python.exe" "${CLAUDE_PLUGIN_ROOT}/skills/shared/scripts/paths.py" <gradeSlug> <subjectSlug> <No>
+eduone-py paths.py <gradeSlug> <subjectSlug> <No>
 ```
 ได้ JSON keys: `song_json`, `song_mp3`, **`content_srcpack_md`** (source ที่ใช้จริง),
 `content_c1_json`, `content_c1_docx` (สำรอง), `topic_dir`, `dirs{...}` ฯลฯ
@@ -62,7 +62,7 @@ song-writer ต้อง **อ่าน `${CLAUDE_PLUGIN_ROOT}/skills/song/refer
 ```bash
 export PYTHONIOENCODING=utf-8
 # ต้องมี SUNO_API_KEY ใน env (อย่าเขียน key ลงไฟล์/commit)
-"$LOCALAPPDATA/Programs/Python/Python312/python.exe" "${CLAUDE_PLUGIN_ROOT}/skills/song/scripts/suno_render.py" <song_json> <song_mp3>
+eduone-py suno_render.py <song_json> <song_mp3>
 ```
 (`<song_json>`, `<song_mp3>` = ค่าจาก `paths.py`; ผลลัพธ์อยู่ใน `6. Song/` ร่วมกับ json)
 - เรียก `POST /api/v1/generate` → poll `record-info` จนสำเร็จ (~30–90 วิ, **ใช้เครดิต**) → ดาวน์โหลด mp3
