@@ -65,7 +65,8 @@ for F in "<plan_l1_json>" "<plan_l2_json>"; do
   eduone-py validate_spec.py lesson_plan "$F" --ref "<content_c1_json>" --minutes <period_minutes>
 done
 ```
-ตรวจ: `plan.rows` 9 แถวตามลำดับ · แถว 9 เป็น dict Rubric · เซลล์เป็น str/list/dict ·
+ตรวจ: `plan.rows` 8 หัวข้อตามชื่อและลำดับที่กำหนด · แถว 7 เป็น dict Rubric ·
+ทักษะ 8C ครบ C1–C8 · กิจกรรมครบ 4 ขั้น · เซลล์เป็น str/list/dict ·
 **ผลรวมนาทีของขั้นกิจกรรม = `period_minutes`** · **หน้าปกตรง C1 verbatim** · สัญลักษณ์คณิต
 **exit ≠ 0 → ให้ writer แก้ก่อน**
 
@@ -101,5 +102,6 @@ eduone-py verify_docx.py lesson_plan "<plan_l2_json>" "<plan_l2_docx>"
 ## ข้อกำหนดผลลัพธ์
 - spec json ตรง schema ของ `build_lesson_plan.py` (header, cover.rows 7 แถว verbatim, plan_title, plan.rows).
 - cell รับ str / list[str] / dict `{"template":"4c_standard","topic":"...","skill":"..."}`.
-- กิจกรรมแบ่งตาม `period_minutes` (เช่น 50 นาที: ขั้นนำ/ขั้นสอน/ขั้นสรุป/ขั้นทำแบบฝึกหัด — รวมเวลาพอดี).
+- กิจกรรมแบ่งตาม `period_minutes` (เช่น 50 นาที: ขั้นนำ (ทฤษฎี) / ขั้นสอน (กิจกรรม) /
+  ขั้นสรุป / ขั้นวัดผลการเรียนรู้ (แบบฝึกหัด) — รวมเวลาพอดี).
 - ความยาวแผนแต่ละไฟล์ 4–5 หน้า. ภาษาไทย สไตล์ OVEC.

@@ -34,16 +34,36 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 EMOJI_RE = re.compile("[\U0001F000-\U0001FAFF☀-➿️]")
 JUNK_RE = re.compile("[�]")
 THAI_RE = re.compile(r"[฀-๿]")
-MINUTE_RE = re.compile(r"\((\d+)\s*นาที\)")
+# รับทั้ง "(8 นาที)" และ "(ทฤษฎี - 8 นาที)" — ชื่อขั้นแบบใหม่มีคำนำหน้าในวงเล็บ
+MINUTE_RE = re.compile(r"\((?:[^()]*?)?(\d+)\s*นาที\)")
 CHOICE_PREFIX_RE = re.compile(r"^\s*[กขคง][.)]\s")
 
 # โควตาความยากตามตารางใน prompt-master-exercise (50/25/25)
 QUOTA = {20: (10, 5, 5), 30: (15, 8, 7), 40: (20, 10, 10)}
 
 # ศัพท์ของแผนการสอน — ห้ามขึ้นจอในสไลด์ L1/L2 (อยู่ใน speaker_note ได้)
-PLAN_WORDS = ["ขั้นนำ", "ขั้นสอน", "ขั้นสรุป", "ขั้นทำแบบฝึกหัด", "สมรรถนะ",
-              "Rubric", "รูบริก", "การวัดและประเมินผล", "แหล่งเรียนรู้",
+PLAN_WORDS = ["ขั้นนำ", "ขั้นสอน", "ขั้นสรุป", "ขั้นวัดผลการเรียนรู้", "สมรรถนะ",
+              "Rubric", "รูบริก", "การวัดและประเมินผล", "วัสดุและอุปกรณ์",
               "ด้านความรู้ (K)", "ด้านทักษะ (P)", "ด้านคุณลักษณะ (A)"]
+
+# โครงแผนการสอน L1/L2 — 8 หัวข้อ ชื่อและลำดับตายตัว
+# ★ ทุกที่ที่อ้างแถวต้องอ้างผ่านดัชนีข้างล่างนี้ ห้ามอ้างด้วย "แถวสุดท้าย" หรือ
+#   startswith("<เลข>.") อีก — ของเดิมทำแบบนั้นแล้วประตูตรวจเวลาหลุดเงียบเมื่อเลขเปลี่ยน
+PLAN_HEADS = [
+    "1. ชื่อแผนการจัดการเรียนรู้",
+    "2. วัตถุประสงค์การเรียนรู้",
+    "3. ทักษะ 8C",
+    "4. กิจกรรมการเรียนรู้",
+    "5. วัสดุและอุปกรณ์",
+    "6. การวัดและประเมินผล",
+    "7. เกณฑ์การประเมิน (Rubric)",
+    "8. การนำไปใช้ในชีวิตประจำวัน",
+]
+PLAN_8C_IDX = 2
+PLAN_ACT_IDX = 3
+PLAN_RUBRIC_IDX = 6
+SKILLS_8C_CODES = ["C%d" % i for i in range(1, 9)]
+ACT_STAGES = ["ขั้นนำ", "ขั้นสอน", "ขั้นสรุป", "ขั้นวัดผลการเรียนรู้"]
 TEACHER_RE = re.compile(r"(^|[\s\"'(])ครู|ให้นักเรียน")
 
 # ป้ายชื่อ 7 แถวของตารางหน้าปก (C1 C2 L1 L2 ใช้ชุดเดียวกัน ต้องตรงกันตัวต่อตัว)
@@ -273,21 +293,45 @@ def check_content(data, rep, ref=None):
 # ---------------------------------------------------------------- lesson_plan
 def check_lesson_plan(data, rep, ref=None, minutes=None):
     rows = (data.get("plan") or {}).get("rows") or []
-    if len(rows) != 9:
-        rep.fail("plan.rows ต้องมี 9 แถว — พบ %d" % len(rows))
+    if len(rows) != len(PLAN_HEADS):
+        rep.fail("plan.rows ต้องมี %d แถว — พบ %d" % (len(PLAN_HEADS), len(rows)))
     heads = [r[0] for r in rows if r]
-    for i, want in enumerate(["1.", "2.", "3.", "4.", "5.", "6.", "7.", "8.", "9."]):
-        if i < len(heads) and not heads[i].startswith(want):
-            rep.fail("plan.rows แถวที่ %d ควรขึ้นต้นด้วย %r — พบ %r" % (i + 1, want, heads[i][:24]))
-    if rows and not isinstance(rows[-1][1], dict):
-        rep.fail("แถว 9 (Rubric) ต้องเป็น dict {template, topic, skill}")
+    for i, want in enumerate(PLAN_HEADS):
+        if i < len(heads) and heads[i].strip() != want:
+            rep.fail("plan.rows แถวที่ %d ต้องเป็น %r — พบ %r" % (i + 1, want, heads[i][:40]))
+    # Rubric อ้างด้วยดัชนีที่ระบุ ไม่ใช่ "แถวสุดท้าย" — ตอนนี้ Rubric อยู่แถว 7
+    # ไม่ใช่แถวท้ายอีกแล้ว การอ้างตำแหน่งสุดท้ายจะพังเงียบเมื่อลำดับเปลี่ยน
+    if len(rows) > PLAN_RUBRIC_IDX and not isinstance(rows[PLAN_RUBRIC_IDX][1], dict):
+        rep.fail("แถว %d (Rubric) ต้องเป็น dict {template, topic, skill}" % (PLAN_RUBRIC_IDX + 1))
     for i, r in enumerate(rows, 1):
         if len(r) != 2 or not isinstance(r[1], (str, list, dict)):
             rep.fail("plan.rows แถวที่ %d ต้องเป็น [หัวข้อ, str|list|dict]" % i)
 
+    # ทักษะ 8C ต้องครบทั้ง 8 ข้อ และมีเนื้อจริง
+    sk = rows[PLAN_8C_IDX][1] if len(rows) > PLAN_8C_IDX else None
+    if isinstance(sk, list):
+        for code in SKILLS_8C_CODES:
+            if not any(str(x).lstrip("*").strip().startswith(code) for x in sk):
+                rep.fail("หัวข้อ 3 ทักษะ 8C ขาด %s" % code)
+        for x in sk:
+            body = str(x).split(":", 1)[-1].replace("*", "").strip()
+            if len(body) < 10:
+                rep.fail("หัวข้อ 3 ทักษะ 8C มีข้อที่เว้นว่าง/สั้นเกินไป: %r" % str(x)[:40])
+    elif len(rows) > PLAN_8C_IDX:
+        rep.fail("หัวข้อ 3 ทักษะ 8C ต้องเป็น list 8 บรรทัด")
+
     # เวลารวมของขั้นกิจกรรม ต้องเท่ากับเวลาคาบ
-    act = next((r[1] for r in rows if r and str(r[0]).startswith("6.")), None)
+    # ★ ถ้าหาแถวกิจกรรมไม่เจอต้องดังทันที — ของเดิมค้นด้วย startswith("6.") แล้วถ้า
+    #   ไม่เจอจะได้ None แล้ว guard ข้างล่างข้ามการตรวจเวลาไปเงียบ ๆ โดยไม่มี error
+    #   พอเปลี่ยนเลขหัวข้อทีเดียวประตูนี้ก็หลุดทั้งบานโดยไม่มีใครรู้
+    act = rows[PLAN_ACT_IDX][1] if len(rows) > PLAN_ACT_IDX else None
+    if minutes and not isinstance(act, list):
+        rep.fail("หาแถวกิจกรรม (%s) ไม่เจอ หรือไม่ใช่ list — ตรวจเวลาคาบไม่ได้"
+                 % PLAN_HEADS[PLAN_ACT_IDX])
     if minutes and isinstance(act, list):
+        for stage in ACT_STAGES:
+            if not any(stage in str(x) for x in act):
+                rep.fail("หัวข้อ 4 กิจกรรม ขาดขั้น %r" % stage)
         stages = [x for x in act if str(x).strip().startswith("**")]
         pool = stages or act
         # นับ "เวลาแรก" ของแต่ละขั้นหลักเท่านั้น — เวลาที่โผล่ถัดไปในบรรทัดเดียวกัน
