@@ -36,6 +36,7 @@ from pptx.util import Emu, Pt
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import docx_common as dc  # noqa: E402  (ใช้ pipeline อินไลน์/ตัดคำร่วมกับ .docx)
+import math_policy as mp  # noqa: E402  (นโยบายสมการชุดเดียวกับ .docx)
 
 # ---------------------------------------------------------------- ฟอนต์
 HEAD_FONT = "Prompt"            # หัวข้อทุกชนิด
@@ -257,12 +258,11 @@ def display_text(text: str) -> str:
     ใช้เป็นฐานของการวัดทุกที่ เพื่อให้ตัวสร้างกับตัวตรวจวัดสตริงเดียวกัน
     """
     out = []
-    for kind, span in dc._split_math_spans(text):
+    for kind, span, _bold, _vert in dc.render_spans(text):
         if kind == "math":
             out.append("".join(x[0] for x in _latex_runs(span)))
         else:
-            for seg, _bold, _vert in dc._parse_inline(span):
-                out.append(thai_break(seg))
+            out.append(thai_break(span))
     return "".join(out)
 
 
@@ -538,94 +538,27 @@ def style_run(run, family: str, size_pt: float, bold: bool = False,
 # ================================================================ สมการ / สัญลักษณ์
 _SUP = 30000   # baseline ของยกกำลัง (30%)
 _SUB = -25000  # baseline ของตัวห้อย
-DEGREE = "\u00b0"
-_OPS_RE = re.compile(r"\s*([\u00d7\u00f7\u00b1=\u2260\u2264\u2265\u2248\u2261])\s*")
-_MATH_HARD_RE = re.compile(r"\\(frac|dfrac|tfrac|sqrt|binom|begin|overline|underline|vec|bar|hat)\b")
-_FUNC_RE = re.compile(r"^(sin|cos|tan|log|ln|exp|max|min|lim)$")
+DEGREE = mp.DEGREE
+
+
+_BASELINE = {"superscript": _SUP, "subscript": _SUB, None: 0}
 
 
 def _latex_runs(latex: str):
-    """LaTeX ง่าย ๆ -> [(text, baseline, italic)] โดยใช้ยกกำลัง/ตัวห้อยจริงของ PowerPoint
+    """LaTeX ง่าย ๆ -> [(text, baseline, italic)] ตามที่ PowerPoint ต้องการ
 
-    ครอบ x^{2} · H_{2}O · 3.0 \\times 10^{8} · 25\\ \\mathrm{cm^2} · \\mathrm{30^\\circ C}
-    (สูตรที่มี \\frac \\sqrt ให้ไปทาง OMML — ดู _is_hard_math)
+    ตัวแปลงจริงอยู่ใน math_policy เพื่อให้สไลด์กับเอกสารได้ผลเหมือนกันเป๊ะ —
+    ที่นี่แค่แปลง vert เป็น baseline % ของ PowerPoint
     """
-    s = latex
-    s = re.sub(r"\\mathrm\s*\{([^{}]*)\}", lambda m: "\x01" + m.group(1) + "\x02", s)
-    s = re.sub(r"\\(?:,|;|:|!|quad|qquad)", " ", s)
-    s = s.replace("\\ ", "\x03")                     # \<เว้นวรรค> = ช่องว่างที่สั่งไว้จริง
-    s = re.sub(r"(\\[A-Za-z]+) ", r"\1", s)          # LaTeX กลืนช่องว่างที่ปิดท้ายชื่อคำสั่ง
-    s = dc._apply_aliases(s).replace("\x03", " ")
-    s = s.replace("\u2218", DEGREE)                  # \circ -> องศา ไม่ใช่ ring operator
-    s = re.sub(_OPS_RE, r" \1 ", s)                   # คืนช่องว่างรอบเครื่องหมาย = × ÷ ...
-    s = re.sub(r" {2,}", " ", s)
-
-    runs = []
-    upright = 0
-    i = 0
-    buf = []
-
-    def flush(base=0):
-        if buf:
-            txt = "".join(buf)
-            for part, ital in _split_italic(txt, upright > 0):
-                if part:
-                    runs.append((part, base, ital))
-            buf.clear()
-
-    while i < len(s):
-        c = s[i]
-        if c == "\x01":
-            flush(); upright += 1; i += 1; continue
-        if c == "\x02":
-            flush(); upright = max(0, upright - 1); i += 1; continue
-        if c in "^_" and i + 1 < len(s):
-            j = i + 1
-            if s[j] == "{":
-                k = s.find("}", j)
-                inner, i = (s[j + 1:k], k + 1) if k != -1 else (s[j + 1:], len(s))
-            else:
-                inner, i = s[j], j + 1
-            flush()
-            inner = inner.replace("\x01", "").replace("\x02", "").strip()
-            if inner == DEGREE:      # ^\circ — องศาลอยอยู่แล้ว ไม่ต้องยกซ้ำ
-                runs.append((inner, 0, False))
-                continue
-            base = _SUP if c == "^" else _SUB
-            for part, ital in _split_italic(inner, True):
-                if part:
-                    runs.append((part, base, ital))
-            continue
-        if c in "{}":
-            i += 1
-            continue
-        buf.append(c)
-        i += 1
-    flush()
-    return runs
-
-
-_LETTERS_RE = re.compile(r"[A-Za-z]+")
+    return [(part, _BASELINE[vert], ital) for part, vert, ital in mp.simple_runs(latex)]
 
 
 def _split_italic(text: str, upright: bool):
-    """ตัวแปรละตินตัวเดียวให้เอียง (ตามคู่มือ math-symbols-guide) นอกนั้นตัวตรง"""
-    if upright:
-        return [(text, False)]
-    out, pos = [], 0
-    for m in _LETTERS_RE.finditer(text):
-        if m.start() > pos:
-            out.append((text[pos:m.start()], False))
-        word = m.group(0)
-        out.append((word, len(word) == 1 and not _FUNC_RE.match(word)))
-        pos = m.end()
-    if pos < len(text):
-        out.append((text[pos:], False))
-    return out or [(text, False)]
+    return mp.split_italic(text, upright)
 
 
 def _is_hard_math(latex: str) -> bool:
-    return bool(_MATH_HARD_RE.search(latex))
+    return mp.is_hard(latex)
 
 
 def _append_omml(paragraph, latex: str, family: str, size_pt: float):
@@ -681,18 +614,19 @@ def put_runs(paragraph, text: str, family: str, size_pt: float, bold: bool = Fal
 def add_text(paragraph, text: str, family: str, size_pt: float, bold: bool = False,
              color: RGBColor | None = None, break_thai: bool = True):
     """เติมข้อความลงย่อหน้า — แยก $...$ เป็นสมการ, `**หนา**`, `^{}`/`_{}` ให้อัตโนมัติ"""
-    for kind, span in dc._split_math_spans(text):
+    # ใช้ dc.render_spans เพื่อให้สไลด์กับเอกสารตัดสินตัวหนา/สมการด้วยตรรกะชุดเดียวกัน
+    # (ก่อนหน้านี้ทั้งสองฝั่งมีบั๊กเดียวกัน: ตัวหนาเลื่อนไปลงคำอังกฤษในวงเล็บ)
+    for kind, span, seg_bold, vert in dc.render_spans(text):
         if kind == "math":
             if _is_hard_math(span) and _append_omml(paragraph, span, family, size_pt):
                 continue
             for part, base, ital in _latex_runs(span):
-                put_runs(paragraph, part, family, size_pt, bold, color,
+                put_runs(paragraph, part, family, size_pt, bold or seg_bold, color,
                          italic=ital, baseline=base)
         else:
-            for seg, seg_bold, vert in dc._parse_inline(span):
-                base = _SUP if vert == "superscript" else (_SUB if vert == "subscript" else 0)
-                put_runs(paragraph, thai_break(seg) if break_thai else seg,
-                         family, size_pt, bold or seg_bold, color, baseline=base)
+            base = _SUP if vert == "superscript" else (_SUB if vert == "subscript" else 0)
+            put_runs(paragraph, thai_break(span) if break_thai else span,
+                     family, size_pt, bold or seg_bold, color, baseline=base)
     return paragraph
 
 

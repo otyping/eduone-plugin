@@ -15,6 +15,10 @@ docx_common.py — ไลบรารีกลางสำหรับสร้�
 """
 import os
 import re
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import math_policy as mp  # noqa: E402
 
 from docx import Document
 from docx.enum.table import WD_TABLE_ALIGNMENT
@@ -42,47 +46,22 @@ ZWSP = "​"
 _THAI_RE = re.compile(r"[฀-๿]")
 
 # --- inline-syntax: LaTeX aliases (\\Omega ฯลฯ) ---
-# symbols.txt อยู่ที่ ${CLAUDE_PLUGIN_ROOT}/skills/shared/ (ขึ้นจาก scripts/ 1 ชั้น)
-SYMBOLS_PATH = os.path.join(os.path.dirname(__file__), "..", "symbols.txt")
-_ALIAS_RE = re.compile(r"\\([A-Za-z]+)")
+# ย้ายไปอยู่ math_policy.py แล้ว เพราะ .pptx ต้องใช้ชุดเดียวกัน — คงชื่อเดิมไว้ให้
+# โค้ดที่เรียก dc._apply_aliases / dc.SYMBOLS_PATH ใช้ได้เหมือนเดิม
+SYMBOLS_PATH = mp.SYMBOLS_PATH
+_ALIAS_RE = mp._ALIAS_RE
+_ALIASES = mp._ALIASES
+_apply_aliases = mp.apply_aliases
 
 
-def _load_aliases(path=SYMBOLS_PATH):
-    aliases = {}
-    try:
-        with open(path, "r", encoding="utf-8") as f:
-            for raw in f:
-                line = raw.rstrip("\n").rstrip("\r")
-                if not line or line.lstrip().startswith("#"):
-                    continue
-                parts = line.split("\t")
-                if len(parts) >= 2 and parts[0].startswith("\\"):
-                    aliases[parts[0][1:]] = parts[1]
-    except FileNotFoundError:
-        pass
-    return aliases
+def _parse_inline_stateful(text, bold=False):
+    """คืน (runs, bold ที่ค้างอยู่ท้ายข้อความ) — runs = (segment, bold, vert)
 
-
-_ALIASES = _load_aliases()
-
-
-def _apply_aliases(text):
-    """แทน \\alias ด้วย Unicode แบบ longest-match (\\muA -> μA)"""
-    def repl(m):
-        rest = m.group(1)
-        for length in range(len(rest), 0, -1):
-            sym = _ALIASES.get(rest[:length])
-            if sym is not None:
-                return sym + rest[length:]
-        return m.group(0)
-    return _ALIAS_RE.sub(repl, text)
-
-
-def _parse_inline(text):
-    """คืน list ของ (segment, bold, vert) — vert in {None,'superscript','subscript'}"""
+    ★ ต้องรับ/คืนสถานะ bold เพราะข้อความหนึ่งย่อหน้าถูกตัดเป็นหลายท่อนก่อนถึงที่นี่
+      (ท่อนสมการ `$...$` คั่นอยู่) ถ้าไม่ส่งสถานะต่อ คู่ `**` ที่คร่อมสมการจะเพี้ยน
+    """
     text = _apply_aliases(text)
     runs = []
-    bold = False
     buf = []
     i = 0
 
@@ -118,7 +97,12 @@ def _parse_inline(text):
         buf.append(text[i])
         i += 1
     flush()
-    return runs
+    return runs, bold
+
+
+def _parse_inline(text):
+    """คืน list ของ (segment, bold, vert) — vert in {None,'superscript','subscript'}"""
+    return _parse_inline_stateful(text)[0]
 
 
 # --- LaTeX -> OMML (สมการ Word จริง) ---
@@ -206,6 +190,67 @@ def _split_math_spans(text):
     return out
 
 
+def render_spans(text, math=True):
+    """คืน list ของ (kind, value, bold, vert) — kind in {'text','math'}
+
+    ★ ลำดับสำคัญมาก และเคยผิดมาก่อน
+      1. ตัด `$...$` ออกก่อน — ในนั้นเป็น LaTeX ห้ามใครแตะ (`x^{2}` ต้องอยู่ครบ)
+      2. ท่อนที่เหลือค่อยอ่าน markup `**ตัวหนา**` `^{}` `_{}` โดยส่งสถานะ bold ต่อกัน
+      3. ท่อนข้อความธรรมดาค่อย auto-detect สมการที่ไม่ได้ใส่ `$...$`
+
+      เดิมทำข้อ 3 ก่อนข้อ 2 — `_NONTHAI_RE` นับ `**` เป็นอักขระไม่ใช่ไทย จึงตัดคู่
+      `**...**` ขาดจากกัน แล้วเรียก `_parse_inline` แยกทีละท่อนโดยรีเซ็ตสถานะทุกครั้ง
+      ผลคือ `**จำนวนนับ** (counting number)` ได้ตัวหนาไปลงที่ `(counting number)`
+      ส่วนคำไทยที่ควรหนากลับไม่หนา (พบในเอกสารที่ผลิตจริงทุกไฟล์)
+    """
+    if not math:
+        return [("text", seg, b, v) for seg, b, v in _parse_inline(text)]
+
+    out = []
+
+    def emit_text(chunk, bold):
+        if not chunk:
+            return bold
+        runs, bold = _parse_inline_stateful(chunk, bold)
+        for seg, seg_bold, vert in runs:
+            if vert:                     # ตัวยก/ตัวห้อยเป็น run ข้อความ ไม่ใช่สมการ
+                out.append(("text", seg, seg_bold, vert))
+                continue
+            for kind, val in _auto_spans(seg):
+                out.append((kind, val, seg_bold, None))
+        return bold
+
+    bold = False
+    pos = 0
+    for m in re.finditer(r"\$(.+?)\$", text):
+        bold = emit_text(text[pos:m.start()], bold)
+        out.append(("math", m.group(1), bold, None))
+        pos = m.end()
+    emit_text(text[pos:], bold)
+    return out
+
+
+def put_math(paragraph, latex, size, bold=False, color=None, italic=False):
+    """เขียนสมการหนึ่งช่วงลงย่อหน้า ตามนโยบายใน math_policy
+
+    ซ้อนชั้น (เศษส่วน/กรณฑ์/เมทริกซ์) -> วัตถุ Equation จริง
+    ไม่ซ้อนชั้น (ตัวเลข เครื่องหมาย ยกกำลังชั้นเดียว) -> run ข้อความธรรมดา
+      ซึ่งคัดลอกได้ ค้นหาเจอ แก้ในเวิร์ดได้ และไม่ดันความสูงบรรทัด
+
+    ถ้าเครื่องไม่มี toolchain แปลง OMML จะตกมาทางข้อความให้เอง ไม่ทิ้งสูตรหาย
+    """
+    if mp.is_hard(latex):
+        om = latex_to_omml(latex)
+        if om is not None:
+            paragraph._p.append(om)
+            return True
+    for part, vert, ital in mp.simple_runs(latex):
+        run = paragraph.add_run(part)
+        set_run_font(run, size, bold=bold, color=color, italic=italic or ital)
+        _set_vert_align(run, vert)
+    return False
+
+
 def _set_vert_align(run, vert):
     if not vert:
         return
@@ -272,17 +317,14 @@ def add_paragraph(doc, text, size=BODY_SIZE, bold=False, align="thaiDistribute",
         p.paragraph_format.left_indent = Mm(indent_left)
     set_para_align(p, align)
     if text:
-        spans = _split_math_spans(text) if math else [("text", text)]
-        for kind, val in spans:
+        for kind, val, seg_bold, vert in render_spans(text, math):
+            b = bold or seg_bold
             if kind == "math":
-                om = latex_to_omml(val)
-                if om is not None:
-                    p._p.append(om)
-                    continue
-            for segment, seg_bold, vert in _parse_inline(val):
-                run = p.add_run(segment)
-                set_run_font(run, size, bold=bold or seg_bold, color=color, italic=italic)
-                _set_vert_align(run, vert)
+                put_math(p, val, size, b, color, italic)
+                continue
+            run = p.add_run(val)
+            set_run_font(run, size, bold=b, color=color, italic=italic)
+            _set_vert_align(run, vert)
     return p
 
 
@@ -317,17 +359,14 @@ def fill_paragraph(paragraph, content, size=BODY_SIZE, base_bold=False,
     paragraph.paragraph_format.line_spacing = 1.0
     set_para_align(paragraph, align)
     text = str(content)
-    spans = _split_math_spans(text) if math else [("text", text)]
-    for kind, val in spans:
+    for kind, val, bold, vert in render_spans(text, math):
+        b = base_bold or bold
         if kind == "math":
-            om = latex_to_omml(val)
-            if om is not None:
-                paragraph._p.append(om)
-                continue
-        for segment, bold, vert in _parse_inline(val):
-            run = paragraph.add_run(segment)
-            set_run_font(run, size, bold=base_bold or bold)
-            _set_vert_align(run, vert)
+            put_math(paragraph, val, size, b, None, False)
+            continue
+        run = paragraph.add_run(val)
+        set_run_font(run, size, bold=b)
+        _set_vert_align(run, vert)
 
 
 def _set_cell_no_fill(cell):
