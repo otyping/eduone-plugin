@@ -10,7 +10,7 @@ validate_spec.py — ตรวจ artifact JSON ให้ตรงสเปก *
 
 ใช้:
   validate_spec.py content     <json> [--ref <C1.json>]
-  validate_spec.py lesson_plan <json> [--ref <C1.json>] [--minutes 50]
+  validate_spec.py lesson_plan <json> [--ref <C1.json>] [--minutes 50] [--peer <อีกแผน>]
   validate_spec.py exercise    <json>
   validate_spec.py slides      <json>
   validate_spec.py song        <json>
@@ -335,6 +335,34 @@ def check_content(data, rep, ref=None):
 
 
 # ---------------------------------------------------------------- lesson_plan
+def check_plan_pair(data, peer, rep):
+    """L1 กับ L2 ต้องเป็นคนละกิจกรรมจริง ไม่ใช่แผนเดียวกันเปลี่ยนคำ
+
+    ตรวจข้ามไฟล์จึงต้องรับคู่ของมันมาด้วย (`--peer`) — ของที่ต้องต่างกัน:
+    ชื่อกิจกรรม · plan_title · และ **skill ใน Rubric** ซึ่งเคยเหมือนกันเป๊ะ
+    ทำให้ตาราง Rubric ของสองแผนออกมาตัวอักษรเดียวกันทั้งที่กิจกรรมต่างกันมาก
+    """
+    a = (data.get("plan") or {}).get("rows") or []
+    b = (peer.get("plan") or {}).get("rows") or []
+    if not a or not b:
+        return
+    if data.get("plan_title") == peer.get("plan_title"):
+        rep.fail("plan_title ของ L1 กับ L2 เหมือนกัน — ต้องระบุแบบที่ 1 / แบบที่ 2 ให้ต่างกัน")
+    if len(a) > PLAN_TITLE_IDX and len(b) > PLAN_TITLE_IDX:
+        if str(a[PLAN_TITLE_IDX][1]).strip() == str(b[PLAN_TITLE_IDX][1]).strip():
+            rep.fail("ชื่อกิจกรรม (หัวข้อ 1) ของ L1 กับ L2 เหมือนกัน — เป็นคนละกิจกรรม "
+                     "ต้องคนละชื่อ")
+    if len(a) > PLAN_RUBRIC_IDX and len(b) > PLAN_RUBRIC_IDX:
+        ra, rb = a[PLAN_RUBRIC_IDX][1], b[PLAN_RUBRIC_IDX][1]
+        if isinstance(ra, dict) and isinstance(rb, dict):
+            for key in ("skill", "topic"):
+                if str(ra.get(key, "")).strip() and ra.get(key) == rb.get(key):
+                    rep.fail("Rubric `%s` ของ L1 กับ L2 เหมือนกัน (%r) — ตาราง Rubric "
+                             "จะออกมาตัวอักษรเดียวกันทั้งที่คนละกิจกรรม "
+                             "ให้เขียนตามสิ่งที่แผนของตัวเองให้นักเรียนทำจริง"
+                             % (key, str(ra.get(key))[:40]))
+
+
 def check_lesson_plan(data, rep, ref=None, minutes=None):
     rows = (data.get("plan") or {}).get("rows") or []
     if len(rows) != len(PLAN_HEADS):
@@ -839,6 +867,8 @@ def main():
     ap.add_argument("json_file", nargs="?")
     ap.add_argument("--ref", help="ไฟล์อ้างอิง — หน้าปก (C1.json) หรือแบบฝึกหัดต้นทางของ game")
     ap.add_argument("--minutes", type=int, help="เวลาคาบ (period_minutes) สำหรับ lesson_plan")
+    ap.add_argument("--peer", metavar="PATH",
+                    help="แผนคู่ของมัน (L1 ใส่ L2 / L2 ใส่ L1) — ตรวจว่าเป็นคนละกิจกรรมจริง")
     ap.add_argument("--agents", action="store_true", help="ตรวจ frontmatter ของ .claude/agents/*.md")
     ap.add_argument("--strict", action="store_true", help="นับ WARN เป็นปัญหาด้วย")
     ap.add_argument("--report", metavar="PATH",
@@ -866,6 +896,10 @@ def main():
         check_content(data, rep, ref)
     elif a.kind == "lesson_plan":
         check_lesson_plan(data, rep, ref, a.minutes)
+        if a.peer and os.path.exists(a.peer):
+            check_plan_pair(data, load(a.peer), rep)
+        elif a.peer:
+            rep.warn("ไม่พบไฟล์แผนคู่: %s — ข้ามการตรวจว่า L1/L2 ต่างกันจริง" % a.peer)
     elif a.kind == "exercise":
         check_exercise(data, rep)
     elif a.kind == "song":

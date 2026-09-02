@@ -73,6 +73,9 @@ for F in "<plan_l1_json>" "<plan_l2_json>"; do
   eduone-py validate_spec.py lesson_plan "$F" --ref "<content_c1_json>" --minutes <period_minutes>
 done
 ```
+ส่ง `--peer <อีกแผน>` ด้วยทุกครั้ง (ตรวจ L1 ใส่ path ของ L2 และกลับกัน) เพื่อจับว่า
+สองแผนเป็นคนละกิจกรรมจริง ไม่ใช่แผนเดียวกันเปลี่ยนคำ
+
 ตรวจ: `plan.rows` 8 หัวข้อตามชื่อและลำดับที่กำหนด · แถว 7 เป็น dict Rubric ·
 ทักษะ 8C ครบ C1–C8 · กิจกรรมครบ 4 ขั้น · เซลล์เป็น str/list/dict ·
 **ผลรวมนาทีของขั้นกิจกรรม = `period_minutes`** · **หน้าปกตรง C1 verbatim** · สัญลักษณ์คณิต
