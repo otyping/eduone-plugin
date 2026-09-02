@@ -17,7 +17,9 @@ Exit code: 0 = ผ่านทุก check, 1 = พบปัญหา (แสด
 
 เฉพาะ content / lesson_plan:
   - มี page break (หน้าปก -> เนื้อหา)
-  - จำนวนหน้าเนื้อหา (ไม่นับหน้าปก) = 3-5 หน้า  [ใช้ Word COM ถ้ามี; ไม่มีก็ WARN ข้าม]
+  - จำนวนหน้าเนื้อหา (ไม่นับหน้าปก): content = 3-5 หน้า (บังคับ) ·
+    lesson_plan = อย่างน้อย 3 หน้า ยาวเกิน 5 ได้ (แค่ WARN)
+    [ใช้ Word COM ถ้ามี; ไม่มีก็ WARN ข้าม]
 
 เฉพาะ exercise (สคีมาใหม่ {BASE}_ex.json — {questions:[...]}):
   - heading "แบบฝึกหัด"/"หน้าเฉลย" bold 16pt center + page break คั่น
@@ -169,17 +171,29 @@ def verify_content_like(kind, json_path, docx_path):
     if not any(has_page_break(p) for p in doc.paragraphs):
         failures.append("ไม่พบ page break ระหว่างหน้าปกและเนื้อหา")
 
-    # page count 3-5 (Word COM if available)
+    # ---- จำนวนหน้า (Word COM ถ้ามี) ------------------------------------
+    # ★ ขอบบนบังคับเฉพาะ `content` — CLAUDE.md ข้อ 4 กำหนด 3–5 หน้าไว้เป็นข้อบังคับ
+    #   ส่วน `lesson_plan` ยาวเกิน 5 ได้ เพราะแผนมี 9 แถวที่ต้องมีทั้งจุดประสงค์
+    #   กิจกรรมรายขั้น สื่อ และเกณฑ์การวัด — ยิ่งสายโซ่ครบยิ่งยาว การบีบให้อยู่ใน
+    #   5 หน้าจึงเป็นการลงโทษแผนที่ทำถูก (เกิดจริงกับ M1-Math_U1_1_1 ที่ต้องเสีย
+    #   รอบแก้ไปตัด หลัง checkwork สั่งเพิ่มเกณฑ์การวัดจนโตเป็น 6 หน้า)
+    #   ยังเตือนอยู่ เพื่อไม่ให้เสียสัญญาณว่า "เล่มนี้ยาวผิดปกติ"
+    # ขอบล่าง 3 หน้าบังคับทั้งคู่ — สั้นกว่านั้นมักแปลว่ามีแถวที่ยังว่าง
+    hard_max = 5 if kind == "content" else None
     pages = _word_com_content_pages(docx_path)
     if pages is None:
-        print("WARN: ข้าม page-count check (ไม่มี pywin32/Word) — ต้องตรวจ 3-5 หน้าด้วยตน",
+        limit = "3-5" if hard_max else "อย่างน้อย 3"
+        print(f"WARN: ข้าม page-count check (ไม่มี pywin32/Word) — ต้องตรวจ {limit} หน้าด้วยตน",
               file=sys.stderr)
     else:
         content_pages = pages - 1
         if content_pages < 3:
-            failures.append(f"เนื้อหาสั้นไป {content_pages} หน้า (ต้อง 3-5)")
+            failures.append(f"เนื้อหาสั้นไป {content_pages} หน้า (ต้องอย่างน้อย 3)")
+        elif hard_max and content_pages > hard_max:
+            failures.append(f"เนื้อหายาวไป {content_pages} หน้า (ต้อง 3-{hard_max})")
         elif content_pages > 5:
-            failures.append(f"เนื้อหายาวไป {content_pages} หน้า (ต้อง 3-5)")
+            print(f"WARN: {content_pages} หน้า ยาวกว่าปกติ (ส่วนใหญ่ 3-5) "
+                  "— ไม่ถือว่าผิด แต่ลองดูว่ามีถ้อยคำซ้ำที่ตัดได้ไหม", file=sys.stderr)
 
     return failures
 

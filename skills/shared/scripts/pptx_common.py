@@ -20,6 +20,10 @@ import functools
 import glob
 import json
 import os
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from _root import WORK_ROOT  # noqa: E402
 import re
 import struct
 import sys
@@ -397,10 +401,21 @@ def fit_pages(items, family, size_pt, width_in, height_in, bullet=True):
 
 # ================================================================ เทมเพลต
 def template_root() -> str:
-    """โฟลเดอร์ Slide Master Template (อยู่ที่รากโปรเจกต์)"""
-    here = os.path.dirname(os.path.abspath(__file__))
-    root = os.path.abspath(os.path.join(here, "..", "..", "..", ".."))
-    return os.path.join(root, "Slide Master Template")
+    """โฟลเดอร์ Slide Master Template — อยู่ที่ราก **โฟลเดอร์งาน** ไม่ใช่ในปลั๊กอิน
+
+    ★ เดิมหาด้วยการนับถอย 4 ชั้นจากตำแหน่งไฟล์นี้ ซึ่งถูกตอนสกิลยังอยู่ใน repo งาน
+      พอย้ายเป็นปลั๊กอินแล้วมันถอยไปโผล่ที่ `~/.claude/plugins/.../Slide Master Template`
+      ซึ่งไม่มีอยู่จริง — build .pptx ตายด้วย FileNotFoundError
+
+      เทมเพลตเป็นไฟล์ของผู้ใช้ (แต่ละทีมมีแบบของตัวเอง) จึงต้องอ่านจาก WORK_ROOT
+      ที่ `_root.py` แยกไว้ให้แล้ว ไม่ใช่จากโฟลเดอร์ปลั๊กอินที่ถูกทับทุกครั้งที่อัปเดต
+
+    ตั้งทับได้ด้วย EDUONE_TEMPLATE_DIR เผื่อทีมเก็บเทมเพลตไว้ที่อื่น
+    """
+    override = os.environ.get("EDUONE_TEMPLATE_DIR")
+    if override:
+        return override
+    return str(WORK_ROOT / "Slide Master Template")
 
 
 def resolve_template(subject_token: str = "", grade_token: str = "") -> str:
