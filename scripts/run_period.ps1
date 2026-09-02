@@ -16,8 +16,9 @@
 #   .\run_period.ps1 m1 math 1 -DryRun      # ดูคำสั่งที่จะรัน ไม่รันจริง
 #
 # ผลลัพธ์
-#   log ต่อคาบที่ .eduone-runs/<BASE>.log  (ไม่ track git)
-#   สรุปท้ายการรันว่าคาบไหนจบ/ไม่จบ พร้อมเวลาที่ใช้
+#   log ดิบต่อคาบที่ .eduone-runs/<BASE>.jsonl  (ไม่ track git)
+#   {BASE}_usage.json ในโฟลเดอร์คาบ — โทเคนจริงทั้งการรัน (track git ได้)
+#   สรุปท้ายการรันว่าคาบไหนจบ/ไม่จบ พร้อมเวลาและราคา
 
 [CmdletBinding()]
 param(
@@ -52,7 +53,7 @@ foreach ($no in $From..$To) {
     if ($Only) { $prompt = "$prompt --only $Only" }
 
     $base = "$GradeSlug-$SubjectSlug-no$no"
-    $log = Join-Path $logDir "$base.log"
+    $log = Join-Path $logDir "$base.jsonl"
 
     Write-Host ""
     Write-Host "=== คาบ $no · $GradeSlug $SubjectSlug ===" -ForegroundColor Cyan
@@ -66,17 +67,36 @@ foreach ($no in $From..$To) {
 
     $t0 = Get-Date
     # โปรเซสใหม่ต่อคาบ = เซสชันใหม่เสมอ ไม่มีบริบทเก่าติดมา
-    & claude -p $prompt 2>&1 | Tee-Object -FilePath $log
+    # stream-json ให้ทั้งความคืบหน้าสด ๆ ระหว่างรัน และ event `result` ตอนจบ
+    # ที่มีตัวเลขโทเคนจริงทั้งการรัน (รวมทุก sub-agent และทุกรอบแก้)
+    & claude -p $prompt --output-format stream-json --verbose 2>&1 |
+        ForEach-Object {
+            $_ | Out-File -FilePath $log -Append -Encoding utf8
+            # พิมพ์ให้คนดูแบบย่อ ไม่เทข้อมูลดิบทั้งก้อนลงจอ
+            if ($_ -match '"type"\s*:\s*"assistant"') { Write-Host "." -NoNewline }
+            elseif ($_ -match '"type"\s*:\s*"result"') { Write-Host "" }
+        }
     $code = $LASTEXITCODE
     $mins = [math]::Round(((Get-Date) - $t0).TotalMinutes, 1)
 
     $status = if ($code -eq 0) { "จบ" } else { "ไม่จบ (exit $code)" }
-    Write-Host "    $status · $mins นาที" -ForegroundColor (if ($code -eq 0) { "Green" } else { "Red" })
-    $results += [pscustomobject]@{ No = $no; Status = $status; Minutes = $mins }
+    $color = if ($code -eq 0) { "Green" } else { "Red" }
+    Write-Host "    $status · $mins นาที" -ForegroundColor $color
+
+    # สรุปโทเคนลง {BASE}_usage.json — ที่ผ่านมาเลขนี้หายไปกับ session ทุกครั้ง
+    $cost = ""
+    try {
+        $summary = & eduone-py usage_report.py $log $GradeSlug $SubjectSlug $no 2>&1
+        $summary | ForEach-Object { Write-Host "    $_" }
+        $cost = ($summary | Select-String 'ราคาที่ CLI คิดให้: (.+)$').Matches.Groups[1].Value
+    } catch {
+        Write-Warning "สรุปโทเคนไม่สำเร็จ: $_"
+    }
+    $results += [pscustomobject]@{ No = $no; Status = $status; Minutes = $mins; Cost = $cost }
 }
 
 Write-Host ""
 Write-Host "=== สรุป ===" -ForegroundColor Cyan
 $results | Format-Table -AutoSize
-Write-Host "log ทั้งหมดอยู่ที่ $logDir"
-Write-Host "โทเคนที่ใช้จริงดูได้จากบรรทัด usage ใน log แต่ละไฟล์"
+Write-Host "log ดิบอยู่ที่ $logDir"
+Write-Host "โทเคนจริงของแต่ละคาบอยู่ที่ {BASE}_usage.json ในโฟลเดอร์ของคาบนั้น"

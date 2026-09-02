@@ -183,7 +183,11 @@ def verify_content_like(kind, json_path, docx_path):
     pages = _word_com_content_pages(docx_path)
     if pages is None:
         limit = "3-5" if hard_max else "อย่างน้อย 3"
-        print(f"WARN: ข้าม page-count check (ไม่มี pywin32/Word) — ต้องตรวจ {limit} หน้าด้วยตน",
+        print("WARN: ★ ข้าม page-count check (ไม่มี pywin32 หรือไม่มี Word บนเครื่องนี้)",
+              file=sys.stderr)
+        print(f"      ต้องเปิดไฟล์นับ {limit} หน้าด้วยตาเอง และแจ้งไว้ในรายงานปิดงาน",
+              file=sys.stderr)
+        print("      แก้ถาวร: ติดตั้ง pywin32 บนเครื่องผลิต แล้วประตูนี้จะทำงานเอง",
               file=sys.stderr)
     else:
         content_pages = pages - 1

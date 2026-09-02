@@ -76,6 +76,9 @@ def topic_paths(meta: dict) -> dict:
         # {base}_gate_L1.md / {base}_gate_C1.md ฯลฯ จะได้ไม่เขียนทับกัน
         # ไฟล์กลุ่มนี้สร้างใหม่ได้เสมอ จึงไม่ track git (ดู .gitignore)
         "gate_md": f"{root}/{base}_gate.md",
+        # โทเคนที่ใช้จริงของการรันคาบนี้ — usage_report.py เขียนจาก event result
+        # ของ CLI (ยอดจริงทั้งการรัน รวมทุก sub-agent และทุกรอบแก้)
+        "usage_json": f"{root}/{base}_usage.json",
         # 2. LessonPlan
         "plan_l1_json": f"{plan}/{base}_L1.json",
         "plan_l1_docx": f"{plan}/{base}_L1.docx",
