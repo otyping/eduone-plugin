@@ -13,6 +13,9 @@ validate_spec.py — ตรวจ artifact JSON ให้ตรงสเปก *
   validate_spec.py lesson_plan <json> [--ref <C1.json>] [--minutes 50]
   validate_spec.py exercise    <json>
   validate_spec.py slides      <json>
+  validate_spec.py song        <json>
+  validate_spec.py video       <json>
+  validate_spec.py game        <json> [--ref <{BASE}_ex.json>]   # เทียบเฉลยกับต้นทาง
   validate_spec.py --agents                 # ตรวจ frontmatter ของ .claude/agents/*.md
 
 exit 0 = ผ่าน / 1 = พบปัญหา / 2 = usage      (`--strict` นับ WARN เป็นปัญหาด้วย)
@@ -59,11 +62,20 @@ PLAN_HEADS = [
     "7. เกณฑ์การประเมิน (Rubric)",
     "8. การนำไปใช้ในชีวิตประจำวัน",
 ]
+PLAN_KPA_IDX = 1
 PLAN_8C_IDX = 2
 PLAN_ACT_IDX = 3
 PLAN_RUBRIC_IDX = 6
 SKILLS_8C_CODES = ["C%d" % i for i in range(1, 9)]
 ACT_STAGES = ["ขั้นนำ", "ขั้นสอน", "ขั้นสรุป", "ขั้นวัดผลการเรียนรู้"]
+
+# หัวข้อ 2 ต้องมี 3 บรรทัดนี้เท่านั้น ตามชื่อนี้เป๊ะ
+# ★ "ต้องกระชับ ไม่อธิบายยาว" เป็นข้อกำหนดของผู้ใช้ — ถ้าไม่มีเพดานเชิงตัวเลข
+#   writer จะเขียนยาวขึ้นเรื่อย ๆ และเอาสาระสำคัญ/ขอบเขตที่ตัดออกไปแล้วกลับเข้ามาอีก
+#   (เกิดจริงรอบแรกหลังเปลี่ยนโครง: หัวข้อ 2 บวมเป็น 16 บรรทัด บรรทัดละ ~250 อักษร)
+PLAN_KPA_LABELS = ["ด้านความรู้ (K)", "ด้านทักษะ (P)", "ด้านคุณลักษณะ (A)"]
+PLAN_KPA_MAX = 300
+PLAN_8C_MAX = 240
 TEACHER_RE = re.compile(r"(^|[\s\"'(])ครู|ให้นักเรียน")
 
 # ป้ายชื่อ 7 แถวของตารางหน้าปก (C1 C2 L1 L2 ใช้ชุดเดียวกัน ต้องตรงกันตัวต่อตัว)
@@ -74,6 +86,9 @@ TEACHER_RE = re.compile(r"(^|[\s\"'(])ครู|ให้นักเรีย�
 #   ซึ่งไม่มีอยู่ในหลักสูตร — เปิดหลักสูตรเทียบหน้าปกแล้วหาที่มาไม่เจอ
 COVER_LABELS = ["รหัสวิชา", "วิชา", "หน่วย", "ตัวชี้วัด", "เรื่อง",
                 "จุดประสงค์ประจำหน่วย", "สาระสำคัญ / จุดประสงค์ประจำคาบ"]
+
+#: นโยบายโมเดลของโปรเจกต์ (CLAUDE.md ข้อ 8) — agent ทุกตัวต้องเป็นรุ่นนี้
+REQUIRED_MODEL = "opus"
 
 SLIDE_ANCHORS = ["cover", "objectives", "summary", "application", "vocab"]
 SLIDE_MIDDLE = {"content", "question", "example", "formula", "steps",
@@ -323,9 +338,31 @@ def check_lesson_plan(data, rep, ref=None, minutes=None):
         if len(r) != 2 or not isinstance(r[1], (str, list, dict)):
             rep.fail("plan.rows แถวที่ %d ต้องเป็น [หัวข้อ, str|list|dict]" % i)
 
-    # ทักษะ 8C ต้องครบทั้ง 8 ข้อ และมีเนื้อจริง
+    # หัวข้อ 2 — K/P/A เท่านั้น 3 บรรทัด และต้องกระชับ
+    kpa = rows[PLAN_KPA_IDX][1] if len(rows) > PLAN_KPA_IDX else None
+    if isinstance(kpa, list):
+        if len(kpa) != 3:
+            rep.fail("หัวข้อ 2 ต้องมี 3 บรรทัด (K/P/A) — พบ %d บรรทัด "
+                     "ห้ามใส่สาระสำคัญ/ขอบเขต/ความเชื่อมโยงกลับเข้ามา" % len(kpa))
+        for i, want in enumerate(PLAN_KPA_LABELS):
+            if i >= len(kpa):
+                break
+            line = str(kpa[i])
+            if want not in line.split(":", 1)[0]:
+                rep.fail("หัวข้อ 2 บรรทัดที่ %d ต้องขึ้นต้นด้วย %r — พบ %r"
+                         % (i + 1, want, line[:40]))
+            if len(line) > PLAN_KPA_MAX:
+                rep.fail("หัวข้อ 2 บรรทัด %s ยาว %d อักษร (เพดาน %d) — ต้องกระชับ "
+                         "ไม่อธิบายยาว ไม่เล่ากิจกรรมซ้ำกับหัวข้อ 4"
+                         % (want, len(line), PLAN_KPA_MAX))
+    elif len(rows) > PLAN_KPA_IDX:
+        rep.fail("หัวข้อ 2 ต้องเป็น list 3 บรรทัด (K/P/A)")
+
+    # ทักษะ 8C ต้องครบทั้ง 8 ข้อ มีเนื้อจริง และกระชับ
     sk = rows[PLAN_8C_IDX][1] if len(rows) > PLAN_8C_IDX else None
     if isinstance(sk, list):
+        if len(sk) != 8:
+            rep.fail("หัวข้อ 3 ต้องมี 8 บรรทัด (C1-C8) — พบ %d" % len(sk))
         for code in SKILLS_8C_CODES:
             if not any(str(x).lstrip("*").strip().startswith(code) for x in sk):
                 rep.fail("หัวข้อ 3 ทักษะ 8C ขาด %s" % code)
@@ -333,6 +370,9 @@ def check_lesson_plan(data, rep, ref=None, minutes=None):
             body = str(x).split(":", 1)[-1].replace("*", "").strip()
             if len(body) < 10:
                 rep.fail("หัวข้อ 3 ทักษะ 8C มีข้อที่เว้นว่าง/สั้นเกินไป: %r" % str(x)[:40])
+            if len(str(x)) > PLAN_8C_MAX:
+                rep.fail("หัวข้อ 3 %r ยาว %d อักษร (เพดาน %d) — เขียน 1 ประโยคพอ"
+                         % (str(x)[:12], len(str(x)), PLAN_8C_MAX))
     elif len(rows) > PLAN_8C_IDX:
         rep.fail("หัวข้อ 3 ทักษะ 8C ต้องเป็น list 8 บรรทัด")
 
@@ -439,6 +479,159 @@ def check_exercise(data, rep):
              % (n_img, n_aud))
 
 
+# ---------------------------------------------------------------- song
+#: โครงบล็อกที่เนื้อเพลงต้องมี (Master Prompt music)
+SONG_BLOCKS = ["[Intro]", "[Verse", "[Chorus]", "[Outro]"]
+#: ~80-100 BPM ร้องได้ราว 2.2 พยางค์/วินาที — ใช้ประมาณความยาวเพื่อกันเพลงเกิน 60 วิ
+SYLLABLES_PER_SEC = 2.2
+SONG_MAX_SEC = 60
+
+
+def check_song(data, rep):
+    """งานนับล้วนของเพลง — ย้ายมาจาก LLM
+
+    ก่อนหน้านี้ song ไม่มีประตูเชิงเครื่องเลย song-checkwork จึงต้องนั่งนับบรรทัด
+    นับพยางค์ เช็กอักขระต้องห้ามเอง ทั้งที่เป็นงานที่เครื่องทำได้ในเสี้ยววินาที
+    """
+    lyrics = data.get("lyrics")
+    if not isinstance(lyrics, str) or not lyrics.strip():
+        rep.fail("ไม่มีคีย์ 'lyrics' ที่เป็นข้อความ")
+        return
+    if not str(data.get("style") or "").strip():
+        rep.fail("ไม่มีคีย์ 'style' (คำสั่งแนวเพลงสำหรับ Suno)")
+
+    # ★ เจอจริงในไฟล์ที่ผลิตแล้วทั้ง 3 ไฟล์: writer เขียน "/n" (ทับหน้า) แทนการขึ้น
+    #   บรรทัดจริง Suno จะได้ตัวอักษร "/n" ไปร้องด้วย และไม่มีใครเห็นจนกว่าจะฟังไฟล์เสียง
+    for bad, why in (("/n", 'ทับหน้า+n ("/n")'), ("\\n", "backslash+n ที่ยังไม่ถูกแปลง")):
+        if bad in lyrics:
+            rep.fail("เนื้อเพลงใช้ %s แทนการขึ้นบรรทัดจริง %d ที่ — "
+                     "ต้องเป็นการขึ้นบรรทัดจริงใน JSON" % (why, lyrics.count(bad)))
+    for blk in SONG_BLOCKS:
+        if blk not in lyrics:
+            rep.fail("เนื้อเพลงขาดบล็อก %s" % blk)
+    lines = [ln.strip() for ln in lyrics.splitlines() if ln.strip()]
+    body = [ln for ln in lines if not ln.startswith("[")]
+    if not body:
+        rep.fail("มีแต่หัวบล็อก ไม่มีเนื้อร้อง")
+        return
+    # ตรวจเฉพาะบรรทัดที่ร้องจริง — หัวบล็อกอย่าง [Verse 1] มีเลขได้ เป็นสัญลักษณ์ของ Suno
+    sung = "\n".join(body)
+    if re.search(r"[0-9]", sung):
+        rep.fail("เนื้อร้องมีเลขอารบิก — ต้องเขียนเป็นคำอ่าน (ร้องตามไม่ได้)")
+    if "-" in sung:
+        rep.fail('เนื้อร้องมีเครื่องหมาย "-" — ห้ามใช้ในเนื้อร้อง')
+
+    # ไทยเขียนเว้นวรรคทีละคำเพื่อให้ร้องตรงจังหวะ -> นับพยางค์จากจำนวนคำ
+    words = sum(len(ln.split()) for ln in body)
+    est = words / SYLLABLES_PER_SEC
+    if est > SONG_MAX_SEC:
+        rep.fail("เนื้อเพลงยาวเกิน ~%d วินาที (ประมาณ %.0f วิ จาก %d พยางค์)"
+                 % (SONG_MAX_SEC, est, words))
+    rep.note("โครงบล็อก", "ครบ %s" % " ".join(SONG_BLOCKS))
+    rep.note("จำนวนบรรทัดร้อง", len(body))
+    rep.note("ความยาวโดยประมาณ", "%.0f วินาที จาก %d พยางค์ (เพดาน %d)"
+             % (est, words, SONG_MAX_SEC))
+    rep.note("เลขอารบิก / เครื่องหมาย -", "ไม่มี")
+
+
+# ---------------------------------------------------------------- video
+VIDEO_SCENES = (9, 12)
+VIDEO_TOTAL = (150, 180)
+VIDEO_SCENE_SEC = (15, 20)
+VIDEO_SCENE_KEYS = ("number", "title", "duration_sec", "visual", "vo", "on_screen_text")
+
+
+def check_video(data, rep):
+    """งานนับล้วนของ storyboard — จำนวนฉาก ผลรวมเวลา ช่องครบ"""
+    for k in ("header", "lang", "style_guide", "scenes", "total_duration_sec"):
+        if k not in data:
+            rep.fail("ขาดคีย์ '%s'" % k)
+    scenes = data.get("scenes")
+    if not isinstance(scenes, list) or not scenes:
+        rep.fail("ไม่มีคีย์ 'scenes' ที่เป็น list")
+        return
+    n = len(scenes)
+    if not (VIDEO_SCENES[0] <= n <= VIDEO_SCENES[1]):
+        rep.fail("จำนวนฉากต้องอยู่ %d-%d — พบ %d" % (*VIDEO_SCENES, n))
+    total = 0
+    for i, sc in enumerate(scenes, 1):
+        for k in VIDEO_SCENE_KEYS:
+            if not str(sc.get(k, "")).strip():
+                rep.fail("ฉาก %d ขาดช่อง '%s'" % (i, k))
+        if sc.get("number") != i:
+            rep.fail("ฉากที่ %d มี number = %r (ต้องเรียงต่อเนื่องจาก 1)" % (i, sc.get("number")))
+        d = sc.get("duration_sec")
+        if not isinstance(d, (int, float)):
+            rep.fail("ฉาก %d duration_sec ไม่ใช่ตัวเลข" % i)
+            continue
+        total += d
+        if not (VIDEO_SCENE_SEC[0] <= d <= VIDEO_SCENE_SEC[1]):
+            rep.fail("ฉาก %d ยาว %s วิ (ต้องอยู่ %d-%d)" % (i, d, *VIDEO_SCENE_SEC))
+    declared = data.get("total_duration_sec")
+    if declared != total:
+        rep.fail("total_duration_sec = %r แต่ผลรวมของทุกฉาก = %s" % (declared, total))
+    if not (VIDEO_TOTAL[0] <= total <= VIDEO_TOTAL[1]):
+        rep.fail("เวลารวม %s วิ ต้องอยู่ %d-%d" % (total, *VIDEO_TOTAL))
+    rep.note("จำนวนฉาก", "%d (ต้อง %d-%d)" % (n, *VIDEO_SCENES))
+    rep.note("เวลารวม", "%s วิ = ผลรวมของทุกฉาก และอยู่ในช่วง %d-%d"
+             % (total, *VIDEO_TOTAL))
+    rep.note("ช่องของทุกฉาก", "ครบ %s" % " · ".join(VIDEO_SCENE_KEYS))
+
+
+# ---------------------------------------------------------------- game
+GAME_PLAY = {"draw": 10, "default_time_limit_sec": 20, "max_points": 1000}
+
+
+def check_game(data, rep, ref=None):
+    """โครงเกม + **เฉลยต้องตรงกับ {BASE}_ex.json เป๊ะ**
+
+    กฎเทียบเฉลยเคยเป็น heredoc Python ฝังอยู่ใน prompt ของ game-checkwork —
+    เท่ากับมีสคริปต์อยู่แล้วแต่ไปวางไว้ในที่ที่รันไม่อัตโนมัติ ย้ายมาเป็นประตูจริง
+    """
+    if data.get("schema_version") != 2:
+        rep.fail("schema_version ต้องเป็น 2 — พบ %r" % data.get("schema_version"))
+    for k in ("base", "title", "header"):
+        if not str(data.get(k) or "").strip():
+            rep.fail("ขาดคีย์ '%s'" % k)
+    play = data.get("play") or {}
+    for k, want in GAME_PLAY.items():
+        if play.get(k) != want:
+            rep.fail("play.%s ต้องเป็น %r — พบ %r" % (k, want, play.get(k)))
+    qs = data.get("questions")
+    if not isinstance(qs, list) or not qs:
+        rep.fail("ไม่มีคีย์ 'questions' ที่เป็น list")
+        return
+    src = (ref or {}).get("questions") if isinstance(ref, dict) else None
+    if src is not None and len(src) != len(qs):
+        rep.fail("จำนวนข้อ %d ไม่เท่าแบบฝึกหัดต้นทาง %d" % (len(qs), len(src)))
+    mismatch = 0
+    for i, q in enumerate(qs, 1):
+        for k in ("id", "text", "difficulty", "time_limit_sec", "choices", "answer"):
+            if k not in q:
+                rep.fail("ข้อ %d ขาดคีย์ '%s'" % (i, k))
+        ch = q.get("choices") or {}
+        keys = list(ch) if isinstance(ch, dict) else []
+        if keys != list("กขคง"):
+            rep.fail("ข้อ %d ตัวเลือกต้องเป็น ก/ข/ค/ง ตามลำดับ — พบ %r" % (i, keys))
+        if q.get("answer") not in ("ก", "ข", "ค", "ง"):
+            rep.fail("ข้อ %d answer = %r (ต้องเป็น ก/ข/ค/ง)" % (i, q.get("answer")))
+        if src and i <= len(src):
+            idx = next((j for j, c in enumerate(src[i - 1].get("choices") or [])
+                        if c.get("isTrue")), None)
+            want = "กขคง"[idx] if idx is not None and idx < 4 else None
+            if want and q.get("answer") != want:
+                mismatch += 1
+                rep.fail("ข้อ %d เฉลย %r ไม่ตรงแบบฝึกหัดต้นทาง (%r) — writer ห้ามเปลี่ยนเฉลย"
+                         % (i, q.get("answer"), want))
+    rep.note("โครงเกม", "schema_version=2 · draw=%d · เวลา %d วิ · เต็ม %d คะแนน"
+             % (GAME_PLAY["draw"], GAME_PLAY["default_time_limit_sec"],
+                GAME_PLAY["max_points"]))
+    rep.note("จำนวนข้อ", len(qs))
+    if src is not None:
+        rep.note("เฉลยเทียบกับแบบฝึกหัดต้นทาง",
+                 "ตรงทุกข้อ" if not mismatch else "ไม่ตรง %d ข้อ" % mismatch)
+
+
 # ---------------------------------------------------------------- slides
 def _shown_text(s):
     """ข้อความที่ 'ขึ้นจอ' ของสไลด์หนึ่งหน้า (speaker_note ไม่นับ)"""
@@ -535,6 +728,12 @@ def check_agents(rep):
                 rep.fail("%s ขาด frontmatter '%s'" % (name, key))
         if fm.get("name") and fm["name"] != name[:-3]:
             rep.fail("%s ชื่อใน frontmatter (%r) ไม่ตรงชื่อไฟล์" % (name, fm["name"]))
+        # นโยบายโมเดล (CLAUDE.md ข้อ 8) — ห้ามเปลี่ยนจนกว่าเจ้าของ repo จะแจ้ง
+        # เดิม lint แค่ว่ามีคีย์ model ทำให้เปลี่ยนเป็นรุ่นอื่นได้โดยไม่มีอะไรทัก
+        if fm.get("model") and fm["model"] != REQUIRED_MODEL:
+            rep.fail("%s ใช้ model: %r — นโยบายกำหนดให้ทุก agent เป็น %r "
+                     "(CLAUDE.md ข้อ 8 · เปลี่ยนได้เมื่อเจ้าของ repo แจ้งเท่านั้น)"
+                     % (name, fm["model"], REQUIRED_MODEL))
     print("ตรวจ frontmatter ของ agent %d ไฟล์" % len(files))
 
 
@@ -571,9 +770,10 @@ def write_gate_card(path, kind, json_file, rep, rc):
 
 def main():
     ap = argparse.ArgumentParser(description="ตรวจ artifact JSON ให้ตรงสเปกก่อนส่ง checkwork")
-    ap.add_argument("kind", nargs="?", choices=["content", "lesson_plan", "exercise", "slides"])
+    ap.add_argument("kind", nargs="?", choices=["content", "lesson_plan", "exercise",
+                                                "slides", "song", "video", "game"])
     ap.add_argument("json_file", nargs="?")
-    ap.add_argument("--ref", help="ไฟล์อ้างอิงหน้าปก (ปกติคือ C1.json)")
+    ap.add_argument("--ref", help="ไฟล์อ้างอิง — หน้าปก (C1.json) หรือแบบฝึกหัดต้นทางของ game")
     ap.add_argument("--minutes", type=int, help="เวลาคาบ (period_minutes) สำหรับ lesson_plan")
     ap.add_argument("--agents", action="store_true", help="ตรวจ frontmatter ของ .claude/agents/*.md")
     ap.add_argument("--strict", action="store_true", help="นับ WARN เป็นปัญหาด้วย")
@@ -604,6 +804,12 @@ def main():
         check_lesson_plan(data, rep, ref, a.minutes)
     elif a.kind == "exercise":
         check_exercise(data, rep)
+    elif a.kind == "song":
+        check_song(data, rep)
+    elif a.kind == "video":
+        check_video(data, rep)
+    elif a.kind == "game":
+        check_game(data, rep, ref)
     else:
         check_slides(data, rep)
     rc = rep.done("%s (%s)" % (a.kind, os.path.basename(a.json_file)), a.strict)

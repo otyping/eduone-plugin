@@ -10,3 +10,6 @@ Thumbs.db
 *.pfx
 *.p12
 .env
+
+# log ของ run_period.ps1 (หนึ่งคาบหนึ่งเซสชัน)
+.eduone-runs/
