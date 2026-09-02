@@ -46,6 +46,15 @@ PLAN_WORDS = ["ขั้นนำ", "ขั้นสอน", "ขั้นสร
               "ด้านความรู้ (K)", "ด้านทักษะ (P)", "ด้านคุณลักษณะ (A)"]
 TEACHER_RE = re.compile(r"(^|[\s\"'(])ครู|ให้นักเรียน")
 
+# ป้ายชื่อ 7 แถวของตารางหน้าปก (C1 C2 L1 L2 ใช้ชุดเดียวกัน ต้องตรงกันตัวต่อตัว)
+# ★ ชื่อสองแถวท้ายตรงกับชื่อคอลัมน์ในโครงสร้างหลักสูตรของ สสวท. พอดี
+#   แถว "จุดประสงค์ประจำหน่วย" = คอลัมน์ E (OBJ ระดับหน่วย)
+#   แถว "สาระสำคัญ / จุดประสงค์ประจำคาบ" = คอลัมน์ I (COMP ระดับคาบ)
+#   เดิมสองแถวนี้ชื่อ "...ระดับหน่วยการเรียน" ทั้งคู่ และแถวท้ายใส่ COMP ระดับหน่วย
+#   ซึ่งไม่มีอยู่ในหลักสูตร — เปิดหลักสูตรเทียบหน้าปกแล้วหาที่มาไม่เจอ
+COVER_LABELS = ["รหัสวิชา", "วิชา", "หน่วย", "ตัวชี้วัด", "เรื่อง",
+                "จุดประสงค์ประจำหน่วย", "สาระสำคัญ / จุดประสงค์ประจำคาบ"]
+
 SLIDE_ANCHORS = ["cover", "objectives", "summary", "application", "vocab"]
 SLIDE_MIDDLE = {"content", "question", "example", "formula", "steps",
                 "compare", "triple", "lesson_info"}
@@ -200,10 +209,9 @@ def check_digest(data, rep):
 def check_content(data, rep, ref=None):
     cover = data.get("cover") or {}
     rows = cover.get("rows") or []
-    want = ["รหัสวิชา", "วิชา", "หน่วย", "เรื่อง",
-            "จุดประสงค์ประจำหน่วยการเรียน", "ผลลัพธ์การเรียนรู้ระดับหน่วยการเรียน"]
-    if len(rows) != 6:
-        rep.fail("cover.rows ต้องมี 6 แถว — พบ %d" % len(rows))
+    want = COVER_LABELS
+    if len(rows) != len(want):
+        rep.fail("cover.rows ต้องมี %d แถว — พบ %d" % (len(want), len(rows)))
     else:
         for i, (row, label) in enumerate(zip(rows, want), 1):
             if not row or row[0] != label:

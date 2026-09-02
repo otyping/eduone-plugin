@@ -40,7 +40,7 @@ model: opus
   "cover": {
     "title": "แผนการจัดการเรียนรู้",
     "grade_line": "ระดับชั้น...",
-    "rows": [ <6 แถว verbatim จากหน้าปก content: รหัสวิชา/วิชา, หน่วย, เรื่อง, จุดประสงค์ประจำหน่วย, ผลลัพธ์ระดับหน่วย ฯลฯ> ]
+    "rows": [ <7 แถว verbatim จากหน้าปก content: รหัสวิชา / วิชา / หน่วย / ตัวชี้วัด / เรื่อง / จุดประสงค์ประจำหน่วย / สาระสำคัญ / จุดประสงค์ประจำคาบ> ]
   },
   "plan_title": "แบบที่ 1 — การเรียนรู้เชิงสำรวจ (Inquiry-Based Learning)",
   "plan": { "rows": [
@@ -66,10 +66,10 @@ model: opus
 }
 ```
 - cell รับ str / list[str] / dict. dict `4c_standard` จะ expand เป็น rubric 4 มิติ × 4 ระดับอัตโนมัติ — กรอกแค่ topic/skill.
-- หน้าปก rows ต้อง **verbatim** เท่ากับ content (6 แถว) — อย่าแก้ถ้อยคำ.
+- หน้าปก rows ต้อง **verbatim** เท่ากับ content (7 แถว) — อย่าแก้ถ้อยคำ.
 
 ## ขั้นทำงาน
-1. อ่าน metadata + ข้อความ C1. แยกหน้าปก 6 แถว, OBJ[], COMP[], เนื้อหาหลัก.
+1. อ่าน metadata + ข้อความ C1. แยกหน้าปก 7 แถว, OBJ[] (หน่วย), COMP[] (คาบ), เนื้อหาหลัก.
 2. ร่าง K/P/A ให้ครอบ OBJ+COMP ครบ.
 3. เขียน L1 (inquiry) แล้ว L2 (activity) — กิจกรรมต่างกันจริง, เวลารวม = period_minutes.
 4. เขียนไฟล์ด้วย Write: `{BASE}_L1.json`, `{BASE}_L2.json` ไปยัง path ที่ orchestrator ระบุ ใน `2. LessonPlan/` (resolve จาก paths.py keys `plan_l1_json`/`plan_l2_json`). (orchestrator/paths.ensure_dirs สร้างโฟลเดอร์ให้แล้ว.)

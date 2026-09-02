@@ -32,7 +32,7 @@ model: opus
 
 ### D. ฟอร์แมต/schema
 - `header` มีโครงครบ (ระดับชั้น > วิชา > หน่วย > เรื่อง) ตรง metadata.
-- `cover.rows` = 6 แถว **verbatim** ตรงหน้าปก content (รหัสวิชา/วิชา/หน่วย/เรื่อง/จุดประสงค์ประจำหน่วย/ผลลัพธ์ระดับหน่วย).
+- `cover.rows` = 7 แถว **verbatim** ตรงหน้าปก content (รหัสวิชา / วิชา / หน่วย / ตัวชี้วัด / เรื่อง / จุดประสงค์ประจำหน่วย / สาระสำคัญ / จุดประสงค์ประจำคาบ).
 - `plan_title` ถูกต้อง (L1/L2 ตามแบบ).
 - โครงสร้างตรง schema build_lesson_plan.py: cell เป็น str / list[str] / dict; dict rubric เป็น `{"template":"4c_standard","topic":...,"skill":...}`.
 - ตรวจ json parse ได้ (ใช้ Bash `python -m json.tool` หรือ jq ได้).

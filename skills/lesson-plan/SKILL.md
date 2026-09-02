@@ -50,7 +50,7 @@ eduone-py read_docx_text.py "<content_c1_docx>"
 ```
 > **ห้ามเขียน snippet `p.text` ของ python-docx เอง** — มันอ่านแต่ `w:t` ทำให้ **สมการหายทั้งไฟล์**
 > เงียบ ๆ (เคยเกิดจริงกับ ม.1 คณิต 114 จุด) `read_docx_text.py` ดึง OMML ออกมาให้ด้วย
-ข้อความหน้าปก (cover) ของ content ต้องนำมาใช้ **verbatim** ในหน้าปกแผน (รหัสวิชา/วิชา/หน่วย/เรื่อง/จุดประสงค์ประจำหน่วย/ผลลัพธ์ระดับหน่วย).
+ข้อความหน้าปก (cover) ของ content ต้องนำมาใช้ **verbatim** ในหน้าปกแผน (รหัสวิชา / วิชา / หน่วย / ตัวชี้วัด / เรื่อง / จุดประสงค์ประจำหน่วย / สาระสำคัญ / จุดประสงค์ประจำคาบ).
 
 ### 3) เรียก sub-agent `lesson-plan-writer`
 ส่ง: metadata JSON เต็ม, ข้อความ C1, `period_minutes`, BASE, path output spec.
@@ -99,7 +99,7 @@ eduone-py verify_docx.py lesson_plan "<plan_l2_json>" "<plan_l2_docx>"
 - ตาราง token usage ต่อ sub-agent.
 
 ## ข้อกำหนดผลลัพธ์
-- spec json ตรง schema ของ `build_lesson_plan.py` (header, cover.rows 6 แถว verbatim, plan_title, plan.rows).
+- spec json ตรง schema ของ `build_lesson_plan.py` (header, cover.rows 7 แถว verbatim, plan_title, plan.rows).
 - cell รับ str / list[str] / dict `{"template":"4c_standard","topic":"...","skill":"..."}`.
 - กิจกรรมแบ่งตาม `period_minutes` (เช่น 50 นาที: ขั้นนำ/ขั้นสอน/ขั้นสรุป/ขั้นทำแบบฝึกหัด — รวมเวลาพอดี).
 - ความยาวแผนแต่ละไฟล์ 4–5 หน้า. ภาษาไทย สไตล์ OVEC.
