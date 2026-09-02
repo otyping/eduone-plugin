@@ -89,6 +89,18 @@ PLAN_TITLE_MAX = 60
 PLAN_EXERCISE_HINTS = ["แบบฝึกหัด", "_ex.json", "ข้อ"]
 #: หัวข้อ 6 ห้ามชี้ระดับ "ข้อที่เท่าไร" — ครูเลือกข้อเอง
 PLAN_ASSESS_BAN_RE = re.compile(r"(ใบงาน|แบบฝึกหัด|ใบกิจกรรม)\s*(ข้อ(ที่)?\s*\d|ตอนที่\s*\d)")
+#: บรรทัดขั้นย่อยในเซลล์กิจกรรมขึ้นต้นด้วย "1) " "2) " ...
+PLAN_STEP_RE = re.compile(r"^\s*(\d+)\)")
+#: เพดานความละเอียดของกิจกรรม — เจ้าของโปรเจกต์: "เขียนละเอียดมากเกินจำเป็น และ
+#: กิจกรรมมีรายละเอียด เป็นไปไม่ได้ที่จะทำจบตามเวลา"
+#: แทนการให้ checkwork ตัดสินว่า "ทำทันไหม" ซึ่งรอบ M1-Math_U1_1_2 กินไป 3 รอบ
+#: (วัดจริงก่อนตั้งเพดาน: ขั้นสอน 6-9 ข้อ · ยาวสุด 437 อักษร · เฉลี่ย 208-278)
+PLAN_STEPS_MAX = 6
+PLAN_STEP_CHARS = 220
+#: ขั้นวัดผลไม่ต้องให้ writer เขียน — ประโยคเดียวจบ และเหมือนกันทุกคาบทุกวิชา
+#: "เพราะรู้เรื่องแล้ว ไม่ต้องอธิบายเยอะ"
+PLAN_ASSESS_TEXT = ("ให้นักเรียนทำแบบฝึกหัดของคาบนี้ด้วยตนเอง ประมาณ 10 ข้อ "
+                    "ครูเดินสังเกตและเก็บไปตรวจ")
 TEACHER_RE = re.compile(r"(^|[\s\"'(])ครู|ให้นักเรียน")
 
 # ป้ายชื่อ 7 แถวของตารางหน้าปก (C1 C2 L1 L2 ใช้ชุดเดียวกัน ต้องตรงกันตัวต่อตัว)
@@ -103,6 +115,20 @@ COVER_LABELS = ["รหัสวิชา", "วิชา", "หน่วย", "
 #: นโยบายโมเดลของโปรเจกต์ (CLAUDE.md ข้อ 8) — agent ทุกตัวต้องเป็นรุ่นนี้
 REQUIRED_MODEL = "opus"
 
+#: เพดานจำนวนหน้าสไลด์ — เจ้าของโปรเจกต์กำหนดจากการสอนจริง: "ไม่ควรเกิน 30 หน้า
+#: เต็มที่ 20 หน้ายังเพียงพอเลย ใช้แค่สาระสำคัญ ไม่จำเป็นต้องเอามาหมด"
+#: เขียนเป็นประตูแทนการฝากไว้ใน prompt — ของเดิม prompt เขียนว่า "ตั้งเป้า <= 36"
+#: writer ทุกตัวก็เล็งไปที่ 36 ไม่ใช่ 20 (วัดจริง: C1 28 · C2 32 · L1 26 หน้า)
+SLIDE_PAGES_WARN = 22
+SLIDE_PAGES_MAX = 30
+#: ★ สไลด์ไม่คุมเวลาคาบ — ครูตัดหน้าที่ไม่ใช้เองอยู่แล้ว
+#: กฎ "โน้ตรวมต้องได้ 50 นาที" ทำให้เกิดการรื้อจริง: สไลด์ C1 ของ M1-Math_U1_1_2
+#: ถูกตีกลับเพราะโน้ตรวม 69 นาที ต้องยุบ 2 หน้าแล้วเปลี่ยนชื่อไฟล์รูปทั้ง 6 ไฟล์
+#: เพราะเลขหน้าขยับ — เสี่ยงรูปหลุดทั้งชุด เพื่อแก้ตัวเลขที่ครูไม่ได้ใช้
+SLIDE_NOTE_TIME_RE = re.compile(r"\d+\s*นาที")
+#: ช่วงสูตรคณิต `$...$` และเลขจำนวนเต็มภายใน — ใช้เทียบว่าตัวเลขบนสไลด์มาจากต้นทางจริง
+MATH_SPAN_RE = re.compile(r"\$[^$]+\$")
+NUM_TOKEN_RE = re.compile(r"-?\d+(?:,\d{3})*(?:\.\d+)?")
 SLIDE_ANCHORS = ["cover", "objectives", "summary", "application", "vocab"]
 SLIDE_MIDDLE = {"content", "question", "example", "formula", "steps",
                 "compare", "triple", "lesson_info"}
@@ -206,6 +232,16 @@ def cover_of(data):
 DIGEST_KEYS = {"facts", "vocab", "examples", "cautions"}
 DIGEST_BOUNDS = {"facts": (6, 15), "vocab": (3, 15), "examples": (1, 8), "cautions": (1, 8)}
 DIGEST_MAX_CHARS = 4500
+#: C2 สอนความรู้ชุดเดียวกับ C1 จึงไม่ควรยาวกว่า — เดิมกติกาเขียนแค่ "ความรู้ต้องครบ
+#: เท่า C1" writer เลยตีความว่าต้องยาวไม่แพ้กัน (วัดจริง M1-Math_U1_1_2:
+#: C1 10,788 อักษร · C2 12,502 = +15.9%) และสื่อปลายน้ำที่กิน C2 ก็บวมตาม
+CONTENT_C2_OVER_FAIL = 1.10
+
+
+def _para_chars(d):
+    """จำนวนอักษรของย่อหน้าเนื้อหา (ไม่นับหน้าปก/หัวข้อ/ตาราง) ใช้เทียบความยาว C1↔C2"""
+    return sum(len(b.get("text") or "")
+               for b in (d.get("body") or []) if b.get("type") == "p")
 
 
 def check_digest(data, rep):
@@ -321,6 +357,19 @@ def check_content(data, rep, ref=None):
                      % (i, b.get("text")))
     if ref is not None and cover_of(data) != cover_of(ref):
         rep.fail("cover.rows ไม่ตรงกับไฟล์อ้างอิง (C1↔C2 ต้องเหมือนกันทุกตัวอักษร)")
+    if ref is not None and str(data.get("mode_label", "")).startswith("แบบที่ 2"):
+        me, base = _para_chars(data), _para_chars(ref)
+        if base:
+            ratio = me / float(base)
+            if ratio > CONTENT_C2_OVER_FAIL:
+                rep.fail("C2 ยาว %d อักษร มากกว่า C1 (%d) อยู่ %.0f%% — C2 สอนความรู้ชุดเดียว "
+                         "กับ C1 จึงไม่ควรยาวกว่า (เพดาน +%.0f%%) เล่าเรื่องให้กระชับกว่าเดิม"
+                         % (me, base, (ratio - 1) * 100, (CONTENT_C2_OVER_FAIL - 1) * 100))
+            elif me > base:
+                rep.warn("C2 ยาว %d อักษร มากกว่า C1 (%d) อยู่ %.0f%% — ยังอยู่ในเกณฑ์ "
+                         "แต่ C2 ที่ดีควรสั้นกว่าหรือเท่า C1" % (me, base, (ratio - 1) * 100))
+            else:
+                rep.note("ความยาว C2 เทียบ C1", "%d / %d อักษร (ไม่ยาวกว่า)" % (me, base))
     body = data.get("body", [])
     kinds = {}
     for b in body:
@@ -361,6 +410,83 @@ def check_plan_pair(data, peer, rep):
                              "จะออกมาตัวอักษรเดียวกันทั้งที่คนละกิจกรรม "
                              "ให้เขียนตามสิ่งที่แผนของตัวเองให้นักเรียนทำจริง"
                              % (key, str(ra.get(key))[:40]))
+
+
+def check_plan_steps(act, rep):
+    """ลำดับข้อในแต่ละขั้นต้องต่อเนื่อง 1..n และห้ามมีบรรทัดซ้ำในเซลล์เดียวกัน
+
+    ทำไมต้องมี — ประตูเดิมของหัวข้อ 4 ตรวจแค่ "ครบ 4 ขั้นไหม" กับ "เวลารวมเท่าคาบไหม"
+    ซึ่งการเขียนทับอาร์เรย์ผิดพลาดผ่านได้ทั้งคู่ **เงียบ ๆ** (เกิดจริงกับ
+    M1-Math_U1_1_2_L1: ขั้นสอนกลายเป็น 5) 6) 3) 8) 5) 6) 7) 8) 9) — ข้อ 1) 2) 4)
+    หายไป และข้อฉบับเก่าค้างซ้ำอีก 3 ข้อ โดย exit code ยังเป็น 0)
+
+    ผลของการหลุด: กิจกรรมที่หายไปคือประเด็นสำรวจการเปรียบเทียบและการเรียงลำดับ
+    ทำให้ COMP ครึ่งหนึ่งของคาบไม่มีกิจกรรมรองรับและไม่มีของให้วัด ส่วนข้อที่ค้างซ้ำ
+    ยังสั่งให้วัดระยะของจำนวนที่เกินช่วงแถบเส้นจำนวน ซึ่งเป็นบั๊กที่เพิ่งแก้ไปแล้ว
+    ครูที่เปิดไฟล์จะเห็นแผนที่ขัดกันเองโดยไม่มีสัญญาณเตือนใด ๆ
+    """
+    stage_seq = []          # [[ชื่อขั้น, ข้อความหัวขั้น, [(เลขข้อ, ข้อความ)...]], ...]
+    for line in act:
+        text = str(line)
+        if text.strip().startswith("**"):
+            head = text.strip().lstrip("*").split(":**")[0].split("(")[0].strip()
+            stage_seq.append([head or "(ไม่มีชื่อขั้น)", text, []])
+            continue
+        m = PLAN_STEP_RE.match(text)
+        if not m:
+            continue
+        if not stage_seq:
+            rep.fail("หัวข้อ 4 กิจกรรม: พบข้อ %r ก่อนบรรทัดชื่อขั้น — "
+                     "ทุกข้อต้องอยู่ใต้ขั้นที่ขึ้นต้นด้วย **" % text.strip()[:40])
+            stage_seq.append(["(ไม่มีชื่อขั้น)", "", []])
+        stage_seq[-1][2].append((int(m.group(1)), text))
+
+    for name, head, steps in stage_seq:
+        nums = [n for n, _ in steps]
+
+        # ขั้นวัดผล = ประโยคสำเร็จรูปบรรทัดเดียว writer ไม่ต้องเขียนเอง
+        if name.startswith("ขั้นวัดผล"):
+            if nums:
+                rep.fail("ขั้นวัดผลการเรียนรู้ ไม่ต้องมีข้อย่อย — พบ %d ข้อ "
+                         "ให้เหลือบรรทัดเดียวลงท้ายด้วย %r" % (len(nums), PLAN_ASSESS_TEXT))
+            tail = head.split(":**", 1)[-1] if ":**" in head else head
+            if " ".join(tail.split()) != PLAN_ASSESS_TEXT:
+                rep.fail("ขั้นวัดผลการเรียนรู้ ต้องเป็นข้อความสำเร็จรูปคำต่อคำ: %r — พบ %r"
+                         % (PLAN_ASSESS_TEXT, " ".join(tail.split())[:80]))
+            continue
+
+        if not nums:
+            continue
+        want = list(range(1, len(nums) + 1))
+        if nums != want:
+            dup = sorted({n for n in nums if nums.count(n) > 1})
+            extra = " · เลขข้อที่ซ้ำ: %s" % dup if dup else ""
+            rep.fail("หัวข้อ 4 กิจกรรม ขั้น %r ลำดับข้อไม่ต่อเนื่อง — พบ %s ควรเป็น %s%s "
+                     "(อาการนี้มักเกิดจากการเขียนทับอาร์เรย์ทีละบรรทัด "
+                     "ให้เขียนบล็อกของขั้นนั้นใหม่ทั้งบล็อกในครั้งเดียว)"
+                     % (name, nums, want, extra))
+        if len(nums) > PLAN_STEPS_MAX:
+            rep.fail("หัวข้อ 4 กิจกรรม ขั้น %r มี %d ข้อ เกินเพดาน %d — "
+                     "กิจกรรมที่ละเอียดเกินไปทำไม่ทันคาบจริง ให้ยุบข้อที่ต่อเนื่องกันเข้าด้วยกัน"
+                     % (name, len(nums), PLAN_STEPS_MAX))
+        for n, text in steps:
+            if len(text) > PLAN_STEP_CHARS:
+                rep.fail("หัวข้อ 4 กิจกรรม ขั้น %r ข้อ %d ยาว %d อักษร เกินเพดาน %d — "
+                         "เขียนสิ่งที่ครูต้องทำ ไม่ต้องอธิบายเนื้อหาซ้ำจาก C1"
+                         % (name, n, len(text), PLAN_STEP_CHARS))
+
+    seen = {}
+    for text in (str(x) for x in act):
+        key = " ".join(text.split())
+        seen[key] = seen.get(key, 0) + 1
+    for key, n in sorted(seen.items()):
+        if n > 1:
+            rep.fail("หัวข้อ 4 กิจกรรม มีบรรทัดซ้ำ %d ครั้ง — %r" % (n, key[:60]))
+
+    if any(steps for _, _, steps in stage_seq):
+        rep.note("ลำดับข้อกิจกรรม",
+                 " · ".join("%s %d ข้อ" % (name, len(steps))
+                            for name, _, steps in stage_seq if steps))
 
 
 def check_lesson_plan(data, rep, ref=None, minutes=None):
@@ -467,6 +593,14 @@ def check_lesson_plan(data, rep, ref=None, minutes=None):
     if minutes and not isinstance(act, list):
         rep.fail("หาแถวกิจกรรม (%s) ไม่เจอ หรือไม่ใช่ list — ตรวจเวลาคาบไม่ได้"
                  % PLAN_HEADS[PLAN_ACT_IDX])
+    # ★ ตรวจโครงของข้อ — ไม่ผูกกับ --minutes เพราะความเสียหายแบบ "ข้อหาย/ข้อซ้ำ"
+    #   เกิดได้แม้เวลารวมจะยังถูกต้องพอดี
+    #   เช็คเฉพาะเมื่อแถวนี้เป็นแถวกิจกรรมจริง ๆ — สคีมาเก่า (9 หัวข้อ) วาง
+    #   "4. สาระการเรียนรู้" ไว้ตำแหน่งนี้ ซึ่งเป็นรายการเนื้อหาที่ขึ้นต้นด้วย "1)"
+    #   ได้ตามปกติ ถ้าตรวจไปด้วยจะได้ FAIL ปลอมทับ FAIL จริงเรื่องชื่อหัวข้อที่มีอยู่แล้ว
+    act_head = str(rows[PLAN_ACT_IDX][0]) if len(rows) > PLAN_ACT_IDX and rows[PLAN_ACT_IDX] else ""
+    if isinstance(act, list) and act_head.startswith(PLAN_HEADS[PLAN_ACT_IDX]):
+        check_plan_steps(act, rep)
     if minutes and isinstance(act, list):
         for stage in ACT_STAGES:
             if not any(stage in str(x) for x in act):
@@ -738,13 +872,22 @@ def _shown_text(s):
     return [str(x) for x in out if str(x).strip()]
 
 
-def check_slides(data, rep):
+def check_slides(data, rep, ref=None):
     slides = data.get("slides") or []
     if not slides:
         rep.fail("ไม่มี slides")
         return
     src = data.get("source", "")
     seq = [s.get("section") for s in slides]
+
+    n = len(slides)
+    if n > SLIDE_PAGES_MAX:
+        rep.fail("สไลด์ %d หน้า เกินเพดาน %d หน้า — ขึ้นจอเฉพาะสาระสำคัญ "
+                 "ไม่ต้องยกเนื้อหาต้นทางมาทั้งหมด (ครูใช้จริงราว %d หน้าต่อคาบ)"
+                 % (n, SLIDE_PAGES_MAX, SLIDE_PAGES_WARN))
+    elif n > SLIDE_PAGES_WARN:
+        rep.warn("สไลด์ %d หน้า มากกว่าที่ครูใช้จริงต่อคาบ (~%d หน้า) — "
+                 "ยุบหน้าที่ประเด็นซ้อนกันได้อีก" % (n, SLIDE_PAGES_WARN))
 
     if seq[0] != "cover":
         rep.fail("หน้าแรกต้องเป็น cover — พบ %r" % seq[0])
@@ -776,6 +919,13 @@ def check_slides(data, rep):
                 rep.warn("หน้า %d image_prompt สั้นเกินไป (%d ตัวอักษร) — ต้องครบ 6 องค์ประกอบ"
                          % (i, len(prompt)))
 
+        note = str(s.get("speaker_note") or "")
+        hit = SLIDE_NOTE_TIME_RE.search(note)
+        if hit:
+            rep.fail("หน้า %d speaker_note ระบุเวลา (%r) — สไลด์ไม่ต้องคุมเวลาคาบ "
+                     "ครูตัดหน้าที่ไม่ใช้เองอยู่แล้ว ให้เขียนเฉพาะสิ่งที่ครูต้องพูด/ถาม"
+                     % (i, hit.group(0)))
+
         if src in ("L1", "L2"):
             if sec in ("content", "question", "steps", "example") and not s.get("speaker_note"):
                 rep.fail("หน้า %d (%s) ไม่มี speaker_note — คำสั่งครูต้องอยู่ตรงนี้" % (i, sec))
@@ -785,6 +935,46 @@ def check_slides(data, rep):
                 for w in PLAN_WORDS:
                     if w in text:
                         rep.fail("หน้า %d มีศัพท์ของแผนขึ้นจอ (%s): %r" % (i, w, text[:50]))
+
+
+def _all_strings(obj):
+    """ไล่เก็บ str ทุกตัวใน JSON ไม่ว่าซ้อนลึกแค่ไหน (ต้นทางมีทั้ง body[] และ plan.rows)"""
+    if isinstance(obj, str):
+        yield obj
+    elif isinstance(obj, dict):
+        for v in obj.values():
+            yield from _all_strings(v)
+    elif isinstance(obj, (list, tuple)):
+        for v in obj:
+            yield from _all_strings(v)
+
+
+def check_slides_numbers(data, ref, rep):
+    """ตัวเลขที่ขึ้นจอต้องหาเจอในต้นทาง — กันการ "เรียบเรียงใหม่" จนตัวเลขเพี้ยน
+
+    เป็น WARN ไม่ใช่ FAIL เพราะสไลด์ย่อ/แตกสูตรของต้นทางได้ตามปกติ
+    (ต้นทางเขียน `$-7, -2, -1$` สไลด์แยกเป็นคนละบรรทัดได้) — ให้ checkwork ชี้ขาด
+    ส่วนกฎ "ยกประโยคมา ไม่เรียบเรียงใหม่" อยู่ใน prompt ของ writer เพราะเป็นเรื่องถ้อยคำ
+    ที่เครื่องตัดสินไม่ได้ (ของจริงที่หลุด: ต้นทางเขียน "ใครควรยืนทางขวา"
+    สไลด์เขียน "ใครต้องไปยืนทางขวาของศูนย์" ซึ่งเป็นเท็จ แต่ตัวเลขเท่าเดิม)
+    """
+    have = set()
+    for text in _all_strings(ref):
+        have.update(NUM_TOKEN_RE.findall(text))
+    if not have:
+        return
+    missing = {}
+    for i, sl in enumerate(data.get("slides") or [], 1):
+        for text in _shown_text(sl):
+            for m in MATH_SPAN_RE.finditer(text):
+                for tok in NUM_TOKEN_RE.findall(m.group(0)):
+                    if tok not in have:
+                        missing.setdefault(tok, i)
+    for tok, i in sorted(missing.items()):
+        rep.warn("หน้า %d มีตัวเลข %s ที่ไม่พบในต้นทาง — ตรวจว่ายกมาถูกหรือคิดขึ้นเอง"
+                 % (i, tok))
+    if not missing:
+        rep.note("ตัวเลขบนสไลด์", "ทุกตัวหาเจอในต้นทาง (ตรวจกับ --ref)")
 
 
 # ---------------------------------------------------------------- agents
@@ -865,7 +1055,8 @@ def main():
     ap.add_argument("kind", nargs="?", choices=["content", "lesson_plan", "exercise",
                                                 "slides", "song", "video", "game"])
     ap.add_argument("json_file", nargs="?")
-    ap.add_argument("--ref", help="ไฟล์อ้างอิง — หน้าปก (C1.json) หรือแบบฝึกหัดต้นทางของ game")
+    ap.add_argument("--ref", help="ไฟล์อ้างอิง — หน้าปก (C1.json) · ต้นทางของสไลด์ "
+                                  "(C1/C2/L1/L2.json) · หรือแบบฝึกหัดต้นทางของ game")
     ap.add_argument("--minutes", type=int, help="เวลาคาบ (period_minutes) สำหรับ lesson_plan")
     ap.add_argument("--peer", metavar="PATH",
                     help="แผนคู่ของมัน (L1 ใส่ L2 / L2 ใส่ L1) — ตรวจว่าเป็นคนละกิจกรรมจริง")
@@ -909,7 +1100,9 @@ def main():
     elif a.kind == "game":
         check_game(data, rep, ref)
     else:
-        check_slides(data, rep)
+        check_slides(data, rep, ref)
+        if ref is not None:
+            check_slides_numbers(data, ref, rep)
     rc = rep.done("%s (%s)" % (a.kind, os.path.basename(a.json_file)), a.strict)
     if a.report:
         write_gate_card(a.report, a.kind, a.json_file, rep, rc)

@@ -76,6 +76,14 @@ def topic_paths(meta: dict) -> dict:
         # {base}_gate_L1.md / {base}_gate_C1.md ฯลฯ จะได้ไม่เขียนทับกัน
         # ไฟล์กลุ่มนี้สร้างใหม่ได้เสมอ จึงไม่ track git (ดู .gitignore)
         "gate_md": f"{root}/{base}_gate.md",
+        # ผลตรวจของ checkwork (LLM) — คนละไฟล์กับบัตรของเครื่องข้างบน
+        # ★ checkwork เขียนรายการแก้ลงไฟล์นี้ แล้วคืนกลับมาแค่ VERDICT + จำนวนข้อ + path
+        #   orchestrator ส่ง path นี้ต่อให้ writer ไปอ่านเอง ไม่ต้องพิมพ์รายการแก้ซ้ำ
+        #   (ของเดิมแม่ต้องพิมพ์รายการแก้ยาว ๆ ลง prompt ทุกรอบที่ส่งกลับให้ writer
+        #    ซึ่งกินบริบทของแม่ และแม่พิมพ์ตกหล่นเมื่อไร ลูกก็แก้ไม่ครบตามนั้น)
+        # ตั้งชื่อให้ตรง pattern `*_gate_*.md` ที่ .gitignore ครอบไว้แล้ว
+        # ผลผลิตหลายไฟล์ให้เติม tag: {base}_gate_L1_review.md · {base}_gate_C1_review.md
+        "review_md": f"{root}/{base}_gate_review.md",
         # โทเคนที่ใช้จริงของการรันคาบนี้ — usage_report.py เขียนจาก event result
         # ของ CLI (ยอดจริงทั้งการรัน รวมทุก sub-agent และทุกรอบแก้)
         "usage_json": f"{root}/{base}_usage.json",
