@@ -113,7 +113,11 @@ NEED = ("grade", "subject", "subject_code", "no", "unit", "unit_name", "order",
 for (g, s), (meta, _) in loaded.items():
     miss = [k for k in NEED if k not in meta]
     check(f"{g} {s} — คีย์ครบ {len(NEED)} ตัว", not miss, "ขาด " + ", ".join(miss))
-    check(f"{g} {s} — OBJ/COMP ของหน่วยไม่ว่าง", bool(meta["obj"] and meta["comp"]))
+    check(f"{g} {s} — OBJ ของหน่วย + COMP ของคาบไม่ว่าง",
+          bool(meta["obj"] and meta["comp"]))
+    check(f"{g} {s} — comp_source บอกที่มาของ COMP",
+          meta.get("comp_source") in ("period", "unit_outcome"),
+          str(meta.get("comp_source")))
 
 # ---------------------------------------------------------------- ประตูตรวจ
 def question(i: int, diff: str) -> dict:

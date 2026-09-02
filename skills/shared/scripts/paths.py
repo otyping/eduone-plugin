@@ -67,6 +67,9 @@ def topic_paths(meta: dict) -> dict:
         "content_research_md": f"{content}/{base}_research.md",
         # source pack ที่ agent ปลายน้ำอ่านแทน C1 เต็ม (srcpack.py สร้างจาก digest ของ C1)
         "content_srcpack_md": f"{content}/{base}_srcpack.md",
+        # บัตรขอบเขตคาบ — scope_card.py เขียนที่ W0 ก่อนเรียก agent ตัวแรก
+        # ทุก prompt ส่งแค่ path ของไฟล์นี้ แทนการพิมพ์ข้อห้ามขอบเขตซ้ำในทุก prompt
+        "scope_md": f"{root}/{base}_scope.md",
         # 2. LessonPlan
         "plan_l1_json": f"{plan}/{base}_L1.json",
         "plan_l1_docx": f"{plan}/{base}_L1.docx",

@@ -18,10 +18,19 @@ BASE token (Title-case): <GradeToken>-<SubjectToken>_U<unit>_<order>  เช่�
     LANG| th
   ตารางหัวข้อ:
     | No. | <unitNum>. <unitName> | <orderNum>. <topic> |
-  บล็อกระดับหน่วย (option — OBJ/COMP):
+  บล็อกระดับหน่วย (option):
     ### หน่วย <unitNum> (No.<a>-<b>)
-    - OBJ| ...
-    - COMP| ...
+    - OBJ|     ...   จุดประสงค์ประจำหน่วย        (xlsx คอลัมน์ E)
+    - IND|     ...   ตัวชี้วัด เช่น 'ค 1.1 ม.1/1'  (xlsx คอลัมน์ F)
+    - OUTCOME| ...   ผลลัพธ์/สมรรถนะระดับหน่วย ที่เขียนขึ้นเอง (ไม่มีในหลักสูตร)
+  บล็อกระดับคาบ (option — มีเฉพาะหลักสูตรที่ละเอียดถึงคาบ):
+    - COMP|     <No.> | สาระสำคัญ/จุดประสงค์ประจำคาบ  (xlsx คอลัมน์ I)
+    - SKILLS8C| <No.> | C1 | C5                      (xlsx คอลัมน์ J)
+    - POBJ|     <No.> | 1, 2                          เลขข้อ OBJ ของหน่วยที่คาบนี้รับ
+
+  ★ นิยามที่เจ้าของโปรเจกต์กำหนด — OBJ = ระดับหน่วย · COMP = **ระดับคาบ**
+    (สิ่งที่นักเรียนได้เมื่อจบคาบนั้น) ไฟล์รุ่นเก่าเขียน `COMP|` เป็นระดับหน่วย
+    ตัวอ่านยังรับได้แต่จะจัดเป็น `outcome` ให้อัตโนมัติ
   หัวข้อที่ต่อยอดจากหัวข้ออื่น (option — PREREQ) วางไว้ที่ไหนก็ได้ในไฟล์:
     - PREREQ| 4 <- 2, 3        # No.4 ต้องรู้ No.2 และ No.3 มาก่อน
     ไม่ระบุ = ไม่มี prereq (ค่าเริ่มต้นที่ปลอดภัย) — ระบุเฉพาะหัวข้อที่ต่อยอดกันจริง
@@ -48,13 +57,38 @@ ROW_RE = re.compile(
 )
 UNITBLK_RE = re.compile(r"^###\s*หน่วย\s*(\d+)\b.*?No\.(\d+)\s*[-–]\s*(\d+)")
 OBJ_RE = re.compile(r"^[-*]\s*OBJ\|\s*(.+?)\s*$")
-COMP_RE = re.compile(r"^[-*]\s*COMP\|\s*(.+?)\s*$")
+IND_RE = re.compile(r"^[-*]\s*IND\|\s*(.+?)\s*$")
+OUTCOME_RE = re.compile(r"^[-*]\s*OUTCOME\|\s*(.+?)\s*$")
+# ระดับคาบ — ต้องมีเลข No. คั่นด้วย | เสมอ จึงไม่ชนกับ COMP| รุ่นเก่าที่ไม่มีเลขคีย์
+COMP_RE = re.compile(r"^[-*]\s*COMP\|\s*(\d+)\s*\|\s*(.+?)\s*$")
+SKILLS8C_RE = re.compile(r"^[-*]\s*SKILLS8C\|\s*(\d+)\s*\|\s*(.+?)\s*$")
+POBJ_RE = re.compile(r"^[-*]\s*POBJ\|\s*(\d+)\s*\|\s*([\d\s,]*?)\s*$")
+# COMP| รุ่นเก่า (ระดับหน่วย ไม่มีเลขคีย์) — รับไว้เพื่อไม่ให้ไฟล์ที่ยังไม่ย้ายพัง
+LEGACY_COMP_RE = re.compile(r"^[-*]\s*COMP\|\s*(?!\d+\s*\|)(.+?)\s*$")
 # - PREREQ| 4 <- 2, 3   (รับ <- , ← , : เป็นตัวคั่นได้)
 PREREQ_RE = re.compile(r"^[-*]\s*PREREQ\|\s*(\d+)\s*(?:<-|←|:)\s*([\d\s,]+?)\s*$")
 
 
 def _md_path(grade_slug: str, subject_slug: str) -> Path:
     return REFERENCE_DIR / f"course-structure-{grade_slug}-{subject_slug}.md"
+
+
+def load_8c() -> dict[str, dict]:
+    """คืน {'C1': {'code','en','th'}, ...} จาก skills-8c.txt (ชื่อทางการของ 8C)
+
+    แผน L1/L2 ต้องมีครบทั้ง 8 ข้อทุกแผน — ชื่ออังกฤษคือชื่อที่พิมพ์ลงเอกสาร
+    """
+    path = REFERENCE_DIR / "skills-8c.txt"
+    out: dict[str, dict] = {}
+    if not path.exists():
+        return out
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if not line.strip() or line.lstrip().startswith("#"):
+            continue
+        parts = [c.strip() for c in line.split("	") if c.strip()]
+        if len(parts) >= 3:
+            out[parts[0]] = {"code": parts[0], "en": parts[1], "th": parts[2]}
+    return out
 
 
 def _parse(grade_slug: str, subject_slug: str) -> dict:
@@ -67,7 +101,8 @@ def _parse(grade_slug: str, subject_slug: str) -> dict:
     text = path.read_text(encoding="utf-8")
     front: dict[str, str] = {}
     rows: dict[int, dict] = {}
-    unit_meta: dict[int, dict] = {}   # unitNum -> {obj:[], comp:[], range:(a,b)}
+    unit_meta: dict[int, dict] = {}   # unitNum -> {obj:[], ind:[], outcome:[], range:(a,b)}
+    period_meta: dict[int, dict] = {}  # No. -> {comp:str, skills_8c:[], pobj:[]}
     prereq: dict[int, list[int]] = {}  # no -> [no ที่ต้องรู้ก่อน]
     cur_unit = None
     in_table = False
@@ -87,16 +122,40 @@ def _parse(grade_slug: str, subject_slug: str) -> dict:
         m = UNITBLK_RE.match(line)
         if m:
             cur_unit = int(m.group(1))
-            unit_meta.setdefault(cur_unit, {"obj": [], "comp": [],
+            unit_meta.setdefault(cur_unit, {"obj": [], "ind": [], "outcome": [],
                                             "range": (int(m.group(2)), int(m.group(3)))})
             continue
+        # --- ระดับคาบ: ต้องเช็กก่อนระดับหน่วย เพราะ COMP| มีสองรูปแบบ ---
+        m = COMP_RE.match(line)
+        if m:
+            period_meta.setdefault(int(m.group(1)), {})["comp"] = m.group(2)
+            continue
+        m = SKILLS8C_RE.match(line)
+        if m:
+            codes = [c.strip().upper() for c in re.split(r"[|,]", m.group(2)) if c.strip()]
+            period_meta.setdefault(int(m.group(1)), {})["skills_8c"] = codes
+            continue
+        m = POBJ_RE.match(line)
+        if m:
+            nums = [int(x) for x in re.split(r"[,\s]+", m.group(2)) if x]
+            period_meta.setdefault(int(m.group(1)), {})["pobj"] = nums
+            continue
+        # --- ระดับหน่วย ---
         m = OBJ_RE.match(line)
         if m and cur_unit is not None:
             unit_meta[cur_unit]["obj"].append(m.group(1))
             continue
-        m = COMP_RE.match(line)
+        m = IND_RE.match(line)
         if m and cur_unit is not None:
-            unit_meta[cur_unit]["comp"].append(m.group(1))
+            unit_meta[cur_unit]["ind"].append(m.group(1))
+            continue
+        m = OUTCOME_RE.match(line)
+        if m and cur_unit is not None:
+            unit_meta[cur_unit]["outcome"].append(m.group(1))
+            continue
+        m = LEGACY_COMP_RE.match(line)
+        if m and cur_unit is not None:
+            unit_meta[cur_unit]["outcome"].append(m.group(1))
             continue
         m = ROW_RE.match(line)
         if m:
@@ -128,7 +187,8 @@ def _parse(grade_slug: str, subject_slug: str) -> dict:
                 raise RuntimeError(
                     f"PREREQ| {target} <- {d} : ต้องอ้างหัวข้อที่มาก่อน "
                     f"(No.{d} อยู่หลัง No.{target}) ({path.name})")
-    return {"front": front, "rows": rows, "unit_meta": unit_meta, "prereq": prereq}
+    return {"front": front, "rows": rows, "unit_meta": unit_meta,
+            "period_meta": period_meta, "prereq": prereq}
 
 
 def _locate(grade_token: str, subject_token: str, row: dict) -> tuple[str, str, str]:
@@ -163,11 +223,29 @@ def no_to_token(grade_slug: str, subject_slug: str, no: int) -> dict:
     row = dict(rows[no])
     unit = row["unit"]
     um = parsed["unit_meta"].get(unit, {})
+    pm = parsed["period_meta"].get(no, {})
     # Title-case tokens สำหรับ path/ชื่อไฟล์ output (slug ตัวเล็ก = internal lookup)
     grade_token = grade_slug.upper()            # p1 -> P1
     subject_token = subject_slug.capitalize()   # sci -> Sci
     unit_folder = f"{grade_token}-{subject_token}_U{unit}"     # P1-Sci_U1
     base, topic_dir, topic_folder = _locate(grade_token, subject_token, row)
+
+    # COMP ของคาบ — ถ้าหลักสูตรยังไม่มีข้อมูลรายคาบ ถอยไปใช้ OUTCOME ระดับหน่วย
+    if pm.get("comp"):
+        comp, comp_source = [pm["comp"]], "period"
+    elif um.get("outcome"):
+        comp, comp_source = list(um["outcome"]), "unit_outcome"
+    else:
+        comp, comp_source = [], "none"
+
+    # ทักษะ 8C ที่คาบนี้เน้น — เติมชื่อทางการจาก skills-8c.txt ให้เลย
+    table8c = load_8c()
+    skills_8c = [table8c.get(c, {"code": c, "en": "", "th": ""})
+                 for c in pm.get("skills_8c", [])]
+
+    # OBJ ระดับหน่วยที่คาบนี้รับ — ไม่ระบุ = ว่าง (orchestrator ต้องถาม ห้ามเดา)
+    obj_all = um.get("obj", [])
+    period_obj = [obj_all[i - 1] for i in pm.get("pobj", []) if 1 <= i <= len(obj_all)]
 
     # หัวข้อที่ต้องรู้มาก่อน — คืน metadata พอให้ประกอบ path ได้ (paths.py เติม path ให้)
     prereq = []
@@ -203,15 +281,27 @@ def no_to_token(grade_slug: str, subject_slug: str, no: int) -> dict:
         "period": row["period"],
         "topic_folder": topic_folder,
         "obj": um.get("obj", []),
-        "comp": um.get("comp", []),
+        # ★ COMP = ระดับ **คาบ** (สาระสำคัญ/จุดประสงค์ประจำคาบ — xlsx คอลัมน์ I)
+        #   หลักสูตรที่ยังไม่มีข้อมูลรายคาบจะถอยไปใช้ OUTCOME ระดับหน่วย
+        #   ดู comp_source เพื่อรู้ว่าได้ของจริงหรือของสำรอง
+        "comp": comp,
+        "comp_source": comp_source,
+        "indicator": um.get("ind", []),
+        "outcome": um.get("outcome", []),
+        "skills_8c": skills_8c,
+        "period_obj": period_obj,
         "unit_folder": unit_folder,
         "base": base,
         "topic_dir": topic_dir,
         "prereq": prereq,
+        # หัวกระดาษของทุกเอกสาร — แหล่งเดียว ใช้ทั้ง .docx และหน้าปก .pptx
+        #   หลักสูตรรายคาบ: ... > หน่วยX > หัวข้อY > เรื่องZ
+        #   หลักสูตรเดิม:   ... > หน่วยX > เรื่องY
         "header": (
             f"ระดับชั้น{front.get('GRADE','')} > วิชา{front.get('SUBJECT','')} > "
-            f"หน่วย{row['unit_name']} > เรื่อง{row['topic_name']}"
-            + (f" > คาบ{row['period']} {row['period_name']}" if row["period"] else "")
+            f"หน่วย{row['unit_name']} > "
+            + (f"หัวข้อ{row['topic_name']} > เรื่อง{row['period_name']}"
+               if row["period"] else f"เรื่อง{row['topic_name']}")
         ),
     }
 
