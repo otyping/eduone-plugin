@@ -76,6 +76,19 @@ ACT_STAGES = ["ขั้นนำ", "ขั้นสอน", "ขั้นสร
 PLAN_KPA_LABELS = ["ด้านความรู้ (K)", "ด้านทักษะ (P)", "ด้านคุณลักษณะ (A)"]
 PLAN_KPA_MAX = 300
 PLAN_8C_MAX = 240
+
+PLAN_TITLE_IDX = 0
+PLAN_MATERIAL_IDX = 4
+PLAN_ASSESS_IDX = 5
+#: แถว 1 = **ชื่อกิจกรรม** ไม่ใช่ชื่อเอกสาร — คำพวกนี้แปลว่า writer ใส่ชื่อเอกสารมา
+#: (เกิดจริง: "แผนการจัดการเรียนรู้ที่ 1 เรื่อง ... (การเรียนรู้เชิงสำรวจ 50 นาที)")
+PLAN_TITLE_BAN = ["แผนการจัดการเรียนรู้", "แผนการสอน", "แบบที่ 1", "แบบที่ 2",
+                  "Inquiry-Based", "Activity-Based"]
+PLAN_TITLE_MAX = 60
+#: ขั้นวัดผลต้องอ้างแบบฝึกหัดชุดจริงของคาบ ไม่ใช่ใบงานที่แต่งขึ้นใหม่
+PLAN_EXERCISE_HINTS = ["แบบฝึกหัด", "_ex.json", "ข้อ"]
+#: หัวข้อ 6 ห้ามชี้ระดับ "ข้อที่เท่าไร" — ครูเลือกข้อเอง
+PLAN_ASSESS_BAN_RE = re.compile(r"(ใบงาน|แบบฝึกหัด|ใบกิจกรรม)\s*(ข้อ(ที่)?\s*\d|ตอนที่\s*\d)")
 TEACHER_RE = re.compile(r"(^|[\s\"'(])ครู|ให้นักเรียน")
 
 # ป้ายชื่อ 7 แถวของตารางหน้าปก (C1 C2 L1 L2 ใช้ชุดเดียวกัน ต้องตรงกันตัวต่อตัว)
@@ -332,11 +345,53 @@ def check_lesson_plan(data, rep, ref=None, minutes=None):
             rep.fail("plan.rows แถวที่ %d ต้องเป็น %r — พบ %r" % (i + 1, want, heads[i][:40]))
     # Rubric อ้างด้วยดัชนีที่ระบุ ไม่ใช่ "แถวสุดท้าย" — ตอนนี้ Rubric อยู่แถว 7
     # ไม่ใช่แถวท้ายอีกแล้ว การอ้างตำแหน่งสุดท้ายจะพังเงียบเมื่อลำดับเปลี่ยน
-    if len(rows) > PLAN_RUBRIC_IDX and not isinstance(rows[PLAN_RUBRIC_IDX][1], dict):
-        rep.fail("แถว %d (Rubric) ต้องเป็น dict {template, topic, skill}" % (PLAN_RUBRIC_IDX + 1))
+    rub = rows[PLAN_RUBRIC_IDX][1] if len(rows) > PLAN_RUBRIC_IDX else None
+    if len(rows) > PLAN_RUBRIC_IDX and not isinstance(rub, dict):
+        rep.fail("แถว %d (Rubric) ต้องเป็น dict {template, topic, skill, codes}"
+                 % (PLAN_RUBRIC_IDX + 1))
+    elif isinstance(rub, dict):
+        # ตรวจที่นี่ด้วย ไม่รอให้ไปพังตอน build — Rubric ต้องวัดจากมิติของ 8C
+        # และใช้เฉพาะสองข้อที่หลักสูตรระบุว่าคาบนี้เน้น
+        try:
+            from build_lesson_plan import expand_rubric_template
+            expand_rubric_template(rub)
+        except ImportError:
+            rep.warn("เรียก expand_rubric_template ไม่ได้ — ข้ามการตรวจ Rubric")
+        except ValueError as exc:
+            rep.fail("Rubric: %s" % exc)
     for i, r in enumerate(rows, 1):
         if len(r) != 2 or not isinstance(r[1], (str, list, dict)):
             rep.fail("plan.rows แถวที่ %d ต้องเป็น [หัวข้อ, str|list|dict]" % i)
+
+    # หัวข้อ 1 — ชื่อ**กิจกรรม** ไม่ใช่ชื่อเอกสาร
+    title = rows[PLAN_TITLE_IDX][1] if len(rows) > PLAN_TITLE_IDX else None
+    if isinstance(title, str):
+        for bad in PLAN_TITLE_BAN:
+            if bad in title:
+                rep.fail("หัวข้อ 1 ต้องเป็น **ชื่อกิจกรรม** (เช่น \"เดินทางไปกับเส้นจำนวน\") "
+                         "ไม่ใช่ชื่อเอกสาร — พบคำว่า %r" % bad)
+                break
+        if len(title) > PLAN_TITLE_MAX:
+            rep.fail("หัวข้อ 1 ยาว %d อักษร (เพดาน %d) — ชื่อกิจกรรมควรสั้นและจำง่าย"
+                     % (len(title), PLAN_TITLE_MAX))
+
+    # หัวข้อ 5 — วัสดุและอุปกรณ์ ต้องเป็น bullet รายการละบรรทัด
+    mat = rows[PLAN_MATERIAL_IDX][1] if len(rows) > PLAN_MATERIAL_IDX else None
+    if len(rows) > PLAN_MATERIAL_IDX and not isinstance(mat, list):
+        rep.fail("หัวข้อ 5 วัสดุและอุปกรณ์ ต้องเป็น list (1 รายการ = 1 bullet)")
+    elif isinstance(mat, list):
+        for x in mat:
+            if str(x).count(" · ") or str(x).count(", ") > 1:
+                rep.warn("หัวข้อ 5 บรรทัด %r ดูเหมือนยัดหลายรายการไว้บรรทัดเดียว "
+                         "— แยกเป็น bullet ละรายการ" % str(x)[:40])
+
+    # หัวข้อ 6 — ห้ามชี้ว่าวัดจากใบงาน/แบบฝึกหัด "ข้อไหน" (ครูเลือกข้อเอง)
+    assess = rows[PLAN_ASSESS_IDX][1] if len(rows) > PLAN_ASSESS_IDX else None
+    for x in (assess if isinstance(assess, list) else [assess or ""]):
+        m = PLAN_ASSESS_BAN_RE.search(str(x))
+        if m:
+            rep.fail("หัวข้อ 6 ระบุละเอียดถึงข้อที่วัด (%r) — บอกแค่วิธีวัด เครื่องมือ "
+                     "และเกณฑ์ผ่านพอ ครูเป็นคนเลือกข้อเอง" % m.group(0))
 
     # หัวข้อ 2 — K/P/A เท่านั้น 3 บรรทัด และต้องกระชับ
     kpa = rows[PLAN_KPA_IDX][1] if len(rows) > PLAN_KPA_IDX else None
@@ -388,6 +443,15 @@ def check_lesson_plan(data, rep, ref=None, minutes=None):
         for stage in ACT_STAGES:
             if not any(stage in str(x) for x in act):
                 rep.fail("หัวข้อ 4 กิจกรรม ขาดขั้น %r" % stage)
+        # ขั้นวัดผลต้องให้นักเรียนทำแบบฝึกหัดชุดจริงของคาบ ({BASE}_ex.json 30 ข้อ)
+        # ไม่ใช่ใบงานที่แต่งขึ้นใหม่ — ผลิตแบบฝึกหัดไปแล้วแต่ไม่ได้ใช้ = เสียของ
+        last = next((str(x) for x in act if "ขั้นวัดผลการเรียนรู้" in str(x)), "")
+        # ตัดหัวบรรทัด "**ขั้นวัดผลการเรียนรู้ (แบบฝึกหัด - X นาที):**" ออกก่อน
+        # ไม่งั้นคำว่า "แบบฝึกหัด" ในชื่อขั้นเองจะทำให้ผ่านทั้งที่เนื้อไม่ได้พูดถึงเลย
+        body = last.split(":**", 1)[-1] if ":**" in last else last
+        if last and not any(h in body for h in PLAN_EXERCISE_HINTS):
+            rep.fail("ขั้นวัดผลการเรียนรู้ ต้องระบุว่าให้นักเรียนทำ **แบบฝึกหัดของคาบนี้** "
+                     "(ครูเลือกจาก 30 ข้อ เช่น 10 ข้อ) — ไม่ใช่ใบงานที่แต่งขึ้นใหม่")
         stages = [x for x in act if str(x).strip().startswith("**")]
         pool = stages or act
         # นับ "เวลาแรก" ของแต่ละขั้นหลักเท่านั้น — เวลาที่โผล่ถัดไปในบรรทัดเดียวกัน

@@ -110,7 +110,8 @@ eduone-py verify_docx.py lesson_plan "<plan_l2_json>" "<plan_l2_docx>"
 
 ## ข้อกำหนดผลลัพธ์
 - spec json ตรง schema ของ `build_lesson_plan.py` (header, cover.rows 7 แถว verbatim, plan_title, plan.rows).
-- cell รับ str / list[str] / dict `{"template":"4c_standard","topic":"...","skill":"..."}`.
+- cell รับ str / list[str] / dict `{"template":"8c_standard","codes":["C1","C4"],"topic":"...","skill":"..."}`
+  โดย `codes` = ทักษะ 8C สองข้อที่หลักสูตรระบุว่าคาบนี้เน้น (`skills_8c` จาก metadata).
 - กิจกรรมแบ่งตาม `period_minutes` (เช่น 50 นาที: ขั้นนำ (ทฤษฎี) / ขั้นสอน (กิจกรรม) /
   ขั้นสรุป / ขั้นวัดผลการเรียนรู้ (แบบฝึกหัด) — รวมเวลาพอดี).
 - ความยาวแผนแต่ละไฟล์ 4–5 หน้า. ภาษาไทย สไตล์ OVEC.
