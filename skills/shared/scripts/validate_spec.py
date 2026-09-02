@@ -206,6 +206,42 @@ def check_digest(data, rep):
                  % (total, DIGEST_MAX_CHARS))
 
 
+#: หัวข้อสรุปที่ C1/C2 ไม่ต้องมี — รับทั้งที่มีเลขนำหน้าและไม่มี
+SUMMARY_HEAD_RE = re.compile(r"^\s*(?:\d+[.)]\s*)?(สรุป|บทสรุป|สรุปท้ายบท|สรุปเนื้อหา)\b")
+
+#: เซลล์ที่ยาวเกินนี้แปลว่าเป็นย่อหน้าที่ถูกยัดลงช่อง ไม่ใช่ข้อมูลตาราง
+TABLE_CELL_MAX = 160
+
+
+def check_table(block, idx, rep):
+    """ตารางไม่บังคับว่าต้องมี — แต่ถ้ามีต้องเป็นตารางจริง ไม่ใช่ย่อหน้าที่จัดเป็นช่อง"""
+    header = block.get("header") or []
+    rows = block.get("rows") or []
+    widths = {len(r) for r in rows}
+    if len(widths) > 1:
+        rep.fail("body[%d] ตารางมีจำนวนคอลัมน์ไม่เท่ากัน: %s" % (idx, sorted(widths)))
+    if not header or any(not str(h).strip() for h in header):
+        rep.fail("body[%d] ตารางต้องมี header ครบทุกคอลัมน์" % idx)
+    ncol = len(header) or (max(widths) if widths else 0)
+    if ncol < 2:
+        rep.fail("body[%d] ตารางต้องมีอย่างน้อย 2 คอลัมน์ — พบ %d" % (idx, ncol))
+    if len(rows) < 2:
+        rep.fail("body[%d] ตารางต้องมีอย่างน้อย 2 แถวข้อมูล — พบ %d "
+                 "(น้อยกว่านี้เขียนเป็นย่อหน้าอ่านง่ายกว่า)" % (idx, len(rows)))
+    if header and widths and max(widths) != len(header):
+        rep.fail("body[%d] จำนวนคอลัมน์ของ rows (%d) ไม่ตรงกับ header (%d)"
+                 % (idx, max(widths), len(header)))
+    for r, row in enumerate(rows, 1):
+        for c, cell in enumerate(row, 1):
+            if len(str(cell)) > TABLE_CELL_MAX:
+                rep.fail("body[%d] ตารางแถว %d ช่อง %d ยาว %d อักษร — "
+                         "เกิน %d แปลว่าเป็นย่อหน้าที่ถูกยัดลงตาราง"
+                         % (idx, r, c, len(str(cell)), TABLE_CELL_MAX))
+    for c in range(ncol):
+        if rows and all(not str(row[c]).strip() for row in rows if c < len(row)):
+            rep.fail("body[%d] ตารางคอลัมน์ที่ %d ว่างทุกแถว" % (idx, c + 1))
+
+
 def check_content(data, rep, ref=None):
     cover = data.get("cover") or {}
     rows = cover.get("rows") or []
@@ -224,10 +260,11 @@ def check_content(data, rep, ref=None):
         if t not in ok_types:
             rep.fail("body[%d] ชนิด %r ไม่รองรับ (ต้องเป็น %s)" % (i, t, "/".join(sorted(ok_types))))
         if t == "table":
-            tb = b.get("rows") or []
-            widths = {len(r) for r in tb}
-            if len(widths) > 1:
-                rep.fail("body[%d] ตารางมีจำนวนคอลัมน์ไม่เท่ากัน: %s" % (i, sorted(widths)))
+            check_table(b, i, rep)
+        if t == "h" and SUMMARY_HEAD_RE.match(str(b.get("text") or "")):
+            # เอกสารนี้เป็นสื่อประกอบการสอน ครูสรุปเองในคาบ และแบบฝึกหัดทบทวนอยู่แล้ว
+            rep.fail("body[%d] มีหัวข้อสรุป (%r) — C1/C2 ไม่ต้องมีหัวข้อสรุป"
+                     % (i, b.get("text")))
     if ref is not None and cover_of(data) != cover_of(ref):
         rep.fail("cover.rows ไม่ตรงกับไฟล์อ้างอิง (C1↔C2 ต้องเหมือนกันทุกตัวอักษร)")
     check_digest(data, rep)

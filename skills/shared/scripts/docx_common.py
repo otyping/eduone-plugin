@@ -434,21 +434,31 @@ def add_two_col_table(doc, rows, label_bold=True, header=("หัวข้อ", 
     return table
 
 
-def add_content_table(doc, header, rows):
-    """ตารางเนื้อหา (หน้า 2+) คอลัมน์อิสระ — AutoFit to window, หัวซ้ำทุกหน้า"""
+def add_content_table(doc, header, rows, widths_mm=None, col_align=None):
+    """ตารางเนื้อหา (หน้า 2+) คอลัมน์อิสระ — AutoFit to window, หัวซ้ำทุกหน้า
+
+    widths_mm  ระบุความกว้างคงที่ต่อคอลัมน์ (มม.) — ใช้เมื่อ autofit ให้ผลไม่ดี
+               เช่น คอลัมน์เลขข้อที่มีอักขระเดียวแต่ถูกยืดจนกว้างเกินจำเป็น
+    col_align  จัดวางต่อคอลัมน์ เช่น ("center","center","thaiDistribute")
+    """
     ncol = len(header)
     table = doc.add_table(rows=0, cols=ncol)
     table.alignment = WD_TABLE_ALIGNMENT.CENTER
     table.style = "Table Grid"
     set_table_borders(table)
-    # AutoFit to window 100%
     tbl_pr = table._tbl.tblPr
     tblW = OxmlElement("w:tblW")
-    tblW.set(qn("w:w"), "5000")
-    tblW.set(qn("w:type"), "pct")
-    tbl_pr.append(tblW)
     layout = OxmlElement("w:tblLayout")
-    layout.set(qn("w:type"), "autofit")
+    if widths_mm:
+        table.autofit = False
+        tblW.set(qn("w:w"), "0")
+        tblW.set(qn("w:type"), "auto")
+        layout.set(qn("w:type"), "fixed")
+    else:
+        tblW.set(qn("w:w"), "5000")      # AutoFit to window 100%
+        tblW.set(qn("w:type"), "pct")
+        layout.set(qn("w:type"), "autofit")
+    tbl_pr.append(tblW)
     tbl_pr.append(layout)
     hdr = table.add_row()
     for i, h in enumerate(header):
@@ -457,7 +467,13 @@ def add_content_table(doc, header, rows):
     for row in rows:
         cells = table.add_row().cells
         for i, val in enumerate(row):
-            write_cell(cells[i], val, align="left")
+            a = col_align[i] if col_align and i < len(col_align) else "left"
+            write_cell(cells[i], val, align=a)
+    if widths_mm:
+        # ต้องตั้งที่ทุกเซลล์ ไม่ใช่ที่ column — python-docx เขียน w:tcW รายเซลล์
+        for r in table.rows:
+            for i, w in enumerate(widths_mm[:ncol]):
+                r.cells[i].width = Mm(w)
     return table
 
 

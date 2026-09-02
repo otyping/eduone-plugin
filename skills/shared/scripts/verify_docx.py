@@ -28,7 +28,7 @@ Exit code: 0 = ผ่านทุก check, 1 = พบปัญหา (แสด
   - ตัวเลือกที่ isTrue = true ต้องเป็น **สีแดง** (C00000)
   - บรรทัด [เสียง] ต้องเป็น **สีน้ำเงิน** (1F4E9C) หรือแดงถ้าเป็นตัวเลือกที่ถูก
   - จำนวนรูปที่ฝัง + บรรทัด [รูปภาพ] = จำนวนช่องรูปใน JSON
-  - หน้าเฉลย "N. <ก|ข|ค|ง>" ตรงกับ isTrue + มีบรรทัด "วิธีคิด:" ทุกข้อที่มี solutionSteps
+  - หน้าเฉลยเป็นตาราง 3 คอลัมน์ (ข้อ / คำตอบที่ถูก / วิธีคิด) ตรงกับ isTrue ใน JSON
   - หน้าแบบฝึกหัดไม่โผล่ easy/medium/hard/difficulty
   - header เทียบเมื่อส่ง --header มาเท่านั้น (สคีมาใหม่ไม่เก็บ header ใน JSON)
 """
@@ -348,32 +348,42 @@ def verify_exercise(json_path, docx_path, expected_header=None):
             if kw in ex_text:
                 failures.append(f'หน้าแบบฝึกหัดมีคำว่า "{kw}" โผล่')
 
-    # ---- หน้าเฉลย: "N. <ก-ง>" + "วิธีคิด: ..." ----
+    # ---- หน้าเฉลย: ตาราง 3 คอลัมน์ ข้อ / คำตอบที่ถูก / วิธีคิด ----
+    # ★ ต้องอ่านจาก doc.tables ไม่ใช่ doc.paragraphs — python-docx ไม่นับย่อหน้า
+    #   ที่อยู่ในเซลล์ตารางเข้าไปใน doc.paragraphs ถ้าอ่านผิดที่ ตัวตรวจจะรายงานว่า
+    #   "ไม่มีหน้าเฉลย" ทั้งที่มีอยู่ครบ
     if idx_ans is not None:
-        ans_paras = [p for p in paras[idx_ans + 1:] if p.text.strip()]
-        ans_re = re.compile(r"^(\d+)\.\s*([ก-ง])\s*$")
-        found = 0
-        for i, p in enumerate(ans_paras):
-            m = ans_re.match(p.text.strip())
-            if not m:
-                continue
-            found += 1
-            num = int(m.group(1))
-            if num != found:
-                failures.append(f"หน้าเฉลยลำดับเพี้ยน: เจอ {num} คาดหวัง {found}")
-            if 1 <= num <= n:
-                q = questions[num - 1]
+        # strip_zwsp() แตะเฉพาะ doc.paragraphs — ข้อความในเซลล์ตารางยังมี ZWSP
+        # ที่ apply_thai_linebreak แทรกไว้ ต้องลอกออกก่อนเทียบ ไม่งั้นไม่มีวันตรงกัน
+        def cell(c):
+            return c.text.replace(ZWSP, "").strip()
+
+        want_head = ["ข้อ", "คำตอบที่ถูก", "วิธีคิด"]
+        table = None
+        for t in doc.tables:
+            head = [cell(c) for c in t.rows[0].cells] if t.rows else []
+            if head[:3] == want_head:
+                table = t
+                break
+        if table is None:
+            failures.append("ไม่พบตารางหน้าเฉลย (หัวตาราง: %s)" % " / ".join(want_head))
+        else:
+            body = table.rows[1:]
+            if len(body) != n:
+                failures.append(f"ตารางเฉลยมี {len(body)} แถว คาดหวัง {n}")
+            for i, row in enumerate(body, start=1):
+                cells = [cell(c) for c in row.cells]
+                if not cells[0].isdigit() or int(cells[0]) != i:
+                    failures.append(f"ตารางเฉลยแถว {i}: เลขข้อ = {cells[0]!r} คาดหวัง {i}")
+                    continue
+                q = questions[i - 1]
                 ci = _correct_index(q)
                 want = CHOICE_LETTERS[ci] if 0 <= ci < len(CHOICE_LETTERS) else "?"
-                if m.group(2) != want:
+                if cells[1] != want:
                     failures.append(
-                        f"หน้าเฉลยข้อ {num} = {m.group(2)} ไม่ตรง JSON = {want}")
-                if (q.get("solutionSteps") or "").strip():
-                    nxt = ans_paras[i + 1].text.strip() if i + 1 < len(ans_paras) else ""
-                    if not nxt.startswith("วิธีคิด:"):
-                        failures.append(f"หน้าเฉลยข้อ {num}: ไม่มีบรรทัด 'วิธีคิด:'")
-        if found != n:
-            failures.append(f"หน้าเฉลยมี {found} ข้อ คาดหวัง {n}")
+                        f"ตารางเฉลยข้อ {i} = {cells[1]!r} ไม่ตรง JSON = {want}")
+                if (q.get("solutionSteps") or "").strip() and not cells[2].strip("—- "):
+                    failures.append(f"ตารางเฉลยข้อ {i}: ช่องวิธีคิดว่าง")
 
     return failures
 

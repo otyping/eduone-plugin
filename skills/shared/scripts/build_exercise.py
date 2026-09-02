@@ -36,19 +36,23 @@ CHOICE_INDENT_MM = 10
 DEFAULT_EXT = {"image": ".png", "audio": ".wav"}
 MEDIA_LABEL = {"image": "รูปภาพ", "audio": "เสียง"}
 
+#: หน้าเฉลย — ตาราง 3 คอลัมน์ (A4 ขอบ 25 มม. เหลือพื้นที่พิมพ์ 160 มม.)
+ANSWER_TABLE_HEADER = ["ข้อ", "คำตอบที่ถูก", "วิธีคิด"]
+ANSWER_TABLE_WIDTHS_MM = (14, 26, 120)
+
 
 def _legend(questions):
-    """คำอธิบายสัญลักษณ์ — ใส่เฉพาะส่วนที่เอกสารนี้มีจริง"""
-    parts = []
+    """คำอธิบายสัญลักษณ์ — ใส่เฉพาะส่วนที่เอกสารนี้มีจริง คืน "" ถ้าไม่มีอะไรต้องอธิบาย
+
+    ไม่บอก "ตัวเลือกสีแดง = คำตอบที่ถูก" อีกแล้ว — หน้าเฉลยอยู่ท้ายเล่มและบอกคำตอบ
+    ตรง ๆ อยู่แล้ว การประกาศไว้หน้าแรกเท่ากับชี้เฉลยตั้งแต่นักเรียนยังไม่เริ่มทำ
+    """
     has_audio = any(
         (q.get("audioUrl") or "").strip() or (q.get("audioText") or "").strip()
         or any((c.get("contentType") or "") == "audio" for c in q.get("choices") or [])
         for q in questions
     )
-    if has_audio:
-        parts.append("ข้อความสีน้ำเงิน = บทเสียงที่นักเรียนจะได้ยิน")
-    parts.append("ตัวเลือกสีแดง = คำตอบที่ถูก")
-    return "(%s)" % " · ".join(parts)
+    return "(ข้อความสีน้ำเงิน = บทเสียงที่นักเรียนจะได้ยิน)" if has_audio else ""
 
 
 def asset_name(base, qno, slot, kind, url=""):
@@ -222,8 +226,10 @@ def build(data, out_path, header, base, media_dir=None, base_dir=None, expect=No
 
     doc = dc.new_document(header)
     dc.add_heading(doc, "แบบฝึกหัด")
-    dc.add_paragraph(doc, _legend(questions), align="center", space_before=0, space_after=8,
-                     math=False, color=dc.BLUE, italic=True)
+    legend = _legend(questions)
+    if legend:
+        dc.add_paragraph(doc, legend, align="center", space_before=0, space_after=8,
+                         math=False, color=dc.BLUE, italic=True)
 
     for idx, q in enumerate(questions, start=1):
         ci = correct_index(q)
@@ -241,19 +247,16 @@ def build(data, out_path, header, base, media_dir=None, base_dir=None, expect=No
 
     doc.add_page_break()
     dc.add_heading(doc, "หน้าเฉลย")
+    # ตารางอ่านง่ายกว่าย่อหน้าเรียงกัน 30 ชุด — ครูกวาดตาหาเลขข้อได้ในคอลัมน์เดียว
+    rows = []
     for idx, q in enumerate(questions, start=1):
-        dc.add_paragraph(doc, "%d. %s" % (idx, letter_of(correct_index(q))),
-                         size=dc.BODY_SIZE, align="left",
-                         space_before=2, space_after=0, math=False)
         steps = (q.get("solutionSteps") or "").strip()
-        if steps:
-            s_after, s_ls = _math_spacing(steps)
-            dc.add_paragraph(doc, "วิธีคิด: %s" % steps, size=dc.BODY_SIZE,
-                             align="thaiDistribute", space_before=0,
-                             space_after=max(2, s_after), line_spacing=s_ls,
-                             indent_left=CHOICE_INDENT_MM)
-        else:
+        if not steps:
             warnings.append("ข้อ %d: ไม่มี solutionSteps" % idx)
+        rows.append([str(idx), letter_of(correct_index(q)), steps or "—"])
+    dc.add_content_table(doc, ANSWER_TABLE_HEADER, rows,
+                         widths_mm=ANSWER_TABLE_WIDTHS_MM,
+                         col_align=("center", "center", "thaiDistribute"))
 
     dc.save(doc, out_path)
     return warnings
