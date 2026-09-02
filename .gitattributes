@@ -7,3 +7,7 @@
 # goto/label และบล็อกหลายบรรทัดเพี้ยน (เป็นบั๊กที่หาสาเหตุยากมาก)
 *.cmd text eol=crlf
 *.bat text eol=crlf
+
+# สคริปต์ PowerShell ที่มีภาษาไทยต้องเป็น CRLF + UTF-8 BOM — Windows PowerShell 5.1
+# อ่าน .ps1 เป็น ANSI ถ้าไม่มี BOM แล้วอักษรไทยจะเพี้ยนจนพาร์สไม่ผ่าน
+*.ps1 text eol=crlf
