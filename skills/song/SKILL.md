@@ -30,14 +30,17 @@ eduone-py paths.py <gradeSlug> <subjectSlug> <No>
 ได้ JSON keys: `song_json`, `song_mp3`, **`content_srcpack_md`** (source ที่ใช้จริง),
 `content_c1_json`, `content_c1_docx` (สำรอง), `topic_dir`, `dirs{...}` ฯลฯ
 
-### STEP 2 — อ่าน source pack (ไม่ต้องอ่าน C1 เต็ม)
-ไฟล์ INPUT: **`content_srcpack_md`** (จาก `paths.py` = `1. Content/{BASE}_srcpack.md`)
-เป็นไฟล์ข้อความสั้น อ่านด้วย `Read` ได้เลย มี OBJ/COMP · โครงหัวข้อ · ข้อเท็จจริงแกน ·
-ศัพท์ที่ต้องใช้ให้ตรงกับสื่ออื่น · ตัวอย่างหลัก
+### STEP 2 — เตรียมไฟล์ต้นทาง (ตรวจว่ามี ไม่ต้องอ่าน)
+> **★ orchestrator ห้ามอ่านเนื้อหาเอง** — ตรวจแค่ว่ามีไฟล์ (`ls -l`) แล้วส่ง **path**
+> ให้ writer/checkwork ไปอ่านเอง srcpack ~2.1k โทเคน · C1 เต็ม ~8.1k โทเคน
+> ถ้าแม่อ่านเองจะค้างใน context ตลอด pipeline **และถูกส่งซ้ำอีกในทุก prompt ของลูก**
 
+```bash
+ls -l "<content_srcpack_md>"
+```
 - **ยังไม่มี srcpack** (หัวข้อเก่า) → สร้างก่อน: `srcpack.py "<content_c1_json>" "<content_srcpack_md>"`
-- srcpack ขึ้นว่า "ยังไม่มี digest" → ถอยไปอ่าน **`content_c1_json`** ด้วย `Read` (คีย์ `body[]`)
-  หรือถ้ามีแต่ `.docx` ใช้ `shared/scripts/read_docx_text.py "<content_c1_docx>"`
+- srcpack ขึ้นว่า "ยังไม่มี digest" → บอก writer ให้เปิด **`content_c1_json`** เอง (คีย์ `body[]`)
+  หรือถ้ามีแต่ `.docx` ให้ writer รัน `read_docx_text.py "<content_c1_docx>"`
   (**ห้ามเขียน snippet `p.text` เอง** — สมการจะหายทั้งไฟล์)
 - ไม่มีทั้ง srcpack และ C1 → แจ้งผู้ใช้และหยุด
 
@@ -45,8 +48,9 @@ eduone-py paths.py <gradeSlug> <subjectSlug> <No>
 > คือจ่ายค่า input ทิ้งเปล่า และทำให้ศัพท์ในเพลงเพี้ยนจากสื่ออื่นได้ด้วย
 
 ### STEP 3 — เรียก song-writer (sub-agent)
-ส่งให้ song-writer: `base`, `header`, `lang`, `topic_name`, `obj[]`, `comp[]`, ระดับชั้น,
-และ **เนื้อความจาก srcpack** (ย้ำให้ใช้ศัพท์ตามตารางศัพท์เป๊ะ ๆ เพื่อให้ตรงกับสื่ออื่น)
+ส่งให้ song-writer **เป็น path**: `content_srcpack_md`, `scope_md` พร้อม metadata เล็ก ๆ
+(`base`, `header`, `lang`, `topic_name`, ระดับชั้น) — ย้ำให้ใช้ศัพท์ตามตารางศัพท์ใน srcpack
+เป๊ะ ๆ เพื่อให้ตรงกับสื่ออื่น **ห้ามแปะเนื้อความ srcpack ลงใน prompt**
 song-writer ต้อง **อ่าน `${CLAUDE_PLUGIN_ROOT}/skills/song/reference/prompt-master-music.md` ก่อน** แล้วเขียน artifact ที่ key `song_json` (ใน `6. Song/`):
 `song_json` = `.../<BASE>/6. Song/{BASE}_song.json`  (รูปแบบ `{"lyrics":"...","style":"..."}`)
 

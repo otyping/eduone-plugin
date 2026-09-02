@@ -144,8 +144,8 @@ eduone-py validate_spec.py content "<content_c1_json>"
 ### (d) ★ ประตูของทั้งระบบ — ตรวจ C1 ด้วย content-checkwork (loop ≤ 2 รอบ)
 เรียก sub-agent **`content-checkwork`** ส่ง **เฉพาะ `content_c1_json`** + metadata
 และระบุในคำสั่งให้ชัดว่า **"ตรวจ C1 อย่างเดียว ยังไม่มี C2"** (agent รองรับโหมดไฟล์เดียว)
-- `CHECKWORK: ALL-PASS` → **ปลดล็อก** ไปขั้น (d2) และแจ้ง orchestrator ว่า C1 พร้อมให้ผลผลิตอื่น derive
-- `CHECKWORK: FAIL (...)` → ส่งรายการแก้กลับ `content-academic` แล้วตรวจซ้ำ (≤ 2 รอบ)
+- `VERDICT: PASS` → **ปลดล็อก** ไปขั้น (d2) และแจ้ง orchestrator ว่า C1 พร้อมให้ผลผลิตอื่น derive
+- `VERDICT: FAIL` → ส่งรายการแก้กลับ `content-academic` แล้วตรวจซ้ำ (≤ 2 รอบ)
 - ครบ 2 รอบยังไม่ผ่าน → **หยุด ห้ามปล่อย C2 หรือผลผลิตอื่น** รายงานให้ผู้ใช้ตัดสินใจ
 
 ### (d1) สร้าง source pack ทันทีที่ C1 ผ่าน (สคริปต์ ไม่ใช้โมเดล)

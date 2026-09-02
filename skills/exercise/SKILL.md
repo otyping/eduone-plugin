@@ -50,16 +50,23 @@ Test-Path "<content_c1_json>"; Test-Path "<content_c1_docx>"
 > วิธีเดิมทำสมการหายทั้งไฟล์ในวิชาคณิต (ออกข้อสอบจากเนื้อหาที่ตัวเลขหายไปหมด)
 > · หัวข้อเก่าที่มีแต่ `.docx` ให้ลูกใช้ `shared/scripts/read_docx_text.py <docx>` แทน
 
-**(ถ้ามี BookScan ของวิชานี้)** ใช้เป็นข้อมูลประกอบได้:
+**(ถ้ามี BookScan ของวิชานี้)** ใช้เป็นข้อมูลประกอบได้ — **แต่ orchestrator ห้าม `Read` ภาพเอง**
 ```powershell
 eduone-py bookscan_index.py find "<คำค้น>" --subject <Subject> --grade <M.x>
 eduone-py bookscan_page.py <book> <ช่วงหน้า> --subject <Subject> --grade <M.x>
 ```
-แล้ว `Read` ไฟล์ภาพที่ได้ ส่งสาระให้ writer (อย่าส่ง path ภาพดิบให้ writer เดาเอง)
+ได้ path ของภาพมาแล้วให้ **ส่ง path ต่อให้ `exercise-writer` เปิดเอง**
+
+> **ทำไม**: ภาพสแกน 1 หน้า ≈ 1,700 โทเคนที่ **ค้างใน context ของแม่ถาวร** และถูกอ่านซ้ำ
+> ทุก turn ที่เหลือของ pipeline · ถ้าเปิดในลูก มันอยู่ใน context ที่ทิ้งได้เมื่อลูกจบงาน
+> `/content` ทำถูกอยู่แล้ว (ให้ `content-research` เป็นคนเปิดภาพ) — ทำตามแบบนั้น
+>
+> **ข้อยกเว้นเดียว**: ถ้าต้องเลือกว่าหน้าไหนตรงเรื่องจากผลค้นหลายสิบหน้า ให้ดูจาก
+> `bookscan_index.py find` ซึ่งคืนเป็น **ข้อความ** (~900 โทเคน) ไม่ใช่ภาพ (~6,000 โทเคน)
 
 ### 3. เรียก sub-agent `exercise-writer`
-ส่ง: metadata + **`content_c1_json` (path — ให้ writer อ่านเอง)** + `ex_json` (path ปลายทาง)
-\+ (ถ้ามี) สาระจาก BookScan
+ส่ง: metadata + **`content_c1_json` (path — ให้ writer อ่านเอง)** + `scope_md` (บัตรขอบเขตคาบ)
+\+ `ex_json` (path ปลายทาง) \+ (ถ้ามี) **path ของภาพ BookScan ให้ writer เปิดเอง**
 → writer เขียน `{BASE}_ex.json` ไฟล์เดียว (URL สื่อว่างทั้งหมด)
 
 ### 3.5 Gate อัตโนมัติก่อนส่ง checkwork (บังคับ)

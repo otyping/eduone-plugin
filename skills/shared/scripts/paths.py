@@ -70,6 +70,9 @@ def topic_paths(meta: dict) -> dict:
         # บัตรขอบเขตคาบ — scope_card.py เขียนที่ W0 ก่อนเรียก agent ตัวแรก
         # ทุก prompt ส่งแค่ path ของไฟล์นี้ แทนการพิมพ์ข้อห้ามขอบเขตซ้ำในทุก prompt
         "scope_md": f"{root}/{base}_scope.md",
+        # บัตรผลตรวจของเครื่อง — validate_spec.py --report เขียนก่อนเรียก checkwork
+        # บอกว่าเครื่องนับอะไรไปแล้ว checkwork จะได้ไม่เสียแรงนับซ้ำ
+        "gate_md": f"{root}/{base}_gate.md",
         # 2. LessonPlan
         "plan_l1_json": f"{plan}/{base}_L1.json",
         "plan_l1_docx": f"{plan}/{base}_L1.docx",

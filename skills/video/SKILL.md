@@ -28,20 +28,24 @@ eduone-py paths.py <gradeSlug> <subjectSlug> <No>
 ได้ JSON keys: `video_json`, `video_mp4`, `video_audio_dir`, **`content_srcpack_md`** (source ที่ใช้จริง),
 `content_c1_json`, `content_c1_docx` (สำรอง), `topic_dir`, `dirs{...}` ฯลฯ
 
-### STEP 2 — อ่าน source pack (ไม่ต้องอ่าน C1 เต็ม)
-**`content_srcpack_md`** (จาก `paths.py` = `1. Content/{BASE}_srcpack.md`) — ไฟล์ข้อความสั้น
-อ่านด้วย `Read` ได้เลย มี OBJ/COMP · โครงหัวข้อ · ข้อเท็จจริงแกน · ศัพท์ร่วม · ตัวอย่างหลัก
-(storyboard 9-12 ฉากใช้แกนของเรื่องเป็นหลัก ไม่ได้ลอกย่อหน้าจาก C1)
+### STEP 2 — เตรียมไฟล์ต้นทาง (ตรวจว่ามี ไม่ต้องอ่าน)
+> **★ orchestrator ห้ามอ่านเนื้อหาเอง** — ตรวจแค่ว่ามีไฟล์ (`ls -l`) แล้วส่ง **path**
+> ให้ writer/checkwork ไปอ่านเอง srcpack ~2.1k โทเคน · C1 เต็ม ~8.1k โทเคน
+> ถ้าแม่อ่านเองจะค้างใน context ตลอด pipeline **และถูกส่งซ้ำอีกในทุก prompt ของลูก**
 
+```bash
+ls -l "<content_srcpack_md>"
+```
 - ยังไม่มี srcpack → สร้างก่อน: `srcpack.py "<content_c1_json>" "<content_srcpack_md>"`
-- srcpack ขึ้นว่า "ยังไม่มี digest" หรือฉากไหนต้องการรายละเอียดเพิ่ม → เปิด
-  **`content_c1_json`** ด้วย `Read` (คีย์ `body[]`) หรือถ้ามีแต่ `.docx` ใช้
-  `shared/scripts/read_docx_text.py "<content_c1_docx>"` (**ห้ามเขียน snippet `p.text` เอง** — สมการจะหาย)
+- srcpack ขึ้นว่า "ยังไม่มี digest" หรือฉากไหนต้องการรายละเอียดเพิ่ม → บอก writer ให้เปิด
+  **`content_c1_json`** เอง (คีย์ `body[]`) หรือถ้ามีแต่ `.docx` ให้ writer รัน
+  `read_docx_text.py "<content_c1_docx>"` (**ห้ามเขียน snippet `p.text` เอง** — สมการจะหาย)
 - ไม่มีทั้งคู่ → แจ้งผู้ใช้และหยุด
 
 ### STEP 3 — เรียก video-writer
-ส่ง: `base`, `header`, `lang`, `topic_name`, `obj[]`, `comp[]`, ระดับชั้น, เนื้อความจาก srcpack
-(ย้ำให้ใช้ศัพท์ตามตารางศัพท์ให้ตรงกับสื่ออื่น)
+ส่ง **เป็น path**: `content_srcpack_md`, `scope_md` พร้อม metadata เล็ก ๆ (`base`, `header`,
+`lang`, `topic_name`, ระดับชั้น) — ย้ำให้ใช้ศัพท์ตามตารางศัพท์ใน srcpack ให้ตรงกับสื่ออื่น
+**ห้ามแปะเนื้อความ srcpack ลงใน prompt**
 video-writer ต้อง **อ่าน `${CLAUDE_PLUGIN_ROOT}/skills/video/reference/prompt-master-video.md` ก่อน** แล้วเขียนที่ key `video_json` (ใน `5. Video/`):
 `video_json` = `.../<BASE>/5. Video/{BASE}_video.json`
 

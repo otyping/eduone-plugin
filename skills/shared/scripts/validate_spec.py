@@ -84,12 +84,18 @@ class Report:
     def __init__(self):
         self.problems: list[str] = []
         self.warns: list[str] = []
+        #: สิ่งที่ "เครื่องวัดไปแล้ว" พร้อมค่าที่วัดได้ — ใช้เขียน {BASE}_gate.md
+        #: เพื่อบอก checkwork ว่าอย่าเสียแรงนับซ้ำ ให้ไปตรวจสิ่งที่เครื่องตรวจไม่ได้แทน
+        self.notes: list[tuple[str, str]] = []
 
     def fail(self, msg):
         self.problems.append(msg)
 
     def warn(self, msg):
         self.warns.append(msg)
+
+    def note(self, what, value):
+        self.notes.append((what, str(value)))
 
     def done(self, what, strict=False):
         for w in self.warns:
@@ -287,6 +293,16 @@ def check_content(data, rep, ref=None):
                      % (i, b.get("text")))
     if ref is not None and cover_of(data) != cover_of(ref):
         rep.fail("cover.rows ไม่ตรงกับไฟล์อ้างอิง (C1↔C2 ต้องเหมือนกันทุกตัวอักษร)")
+    body = data.get("body", [])
+    kinds = {}
+    for b in body:
+        kinds[b.get("type")] = kinds.get(b.get("type"), 0) + 1
+    rep.note("หน้าปก", "%d แถว ชื่อและลำดับตรงมาตรฐาน" % len(rows))
+    rep.note("ชนิด block", " · ".join("%s=%d" % kv for kv in sorted(kinds.items())))
+    rep.note("หัวข้อสรุป", "ไม่มี (ตรวจแล้ว)")
+    rep.note("ตาราง", "%d ตาราง — header/คอลัมน์/ความยาวเซลล์ ตรวจแล้ว" % kinds.get("table", 0))
+    if ref is not None:
+        rep.note("หน้าปกตรงไฟล์อ้างอิง", "ตรวจแล้ว verbatim")
     check_digest(data, rep)
 
 
@@ -346,6 +362,13 @@ def check_lesson_plan(data, rep, ref=None, minutes=None):
                      % (total, minutes, [MINUTE_RE.findall(str(x)) for x in pool]))
     if ref is not None and cover_of(data) != cover_of(ref):
         rep.fail("cover.rows ไม่ตรงกับ C1 (ต้อง verbatim)")
+    rep.note("โครงแผน", "%d หัวข้อ ชื่อและลำดับตรงมาตรฐาน" % len(rows))
+    if isinstance(sk, list):
+        rep.note("ทักษะ 8C", "ครบ C1-C8 และไม่มีข้อว่าง")
+    if minutes and isinstance(act, list):
+        rep.note("เวลากิจกรรม", "%d/%d นาที · ครบ 4 ขั้นตามชื่อที่กำหนด" % (total, minutes))
+    if ref is not None:
+        rep.note("หน้าปกตรง C1", "ตรวจแล้ว verbatim")
 
 
 # ---------------------------------------------------------------- exercise
@@ -401,6 +424,19 @@ def check_exercise(data, rep):
                 rep.warn("ตำแหน่งเฉลยเป็นรูปแบบวนซ้ำที่ข้อ %d-%d (%s)"
                          % (start + 1, start + size * 2, block))
                 break
+
+    n_img = sum(1 for q in qs if str(q.get("imageAlt") or "").strip())
+    n_aud = sum(1 for q in qs if str(q.get("audioText") or "").strip())
+    rep.note("จำนวนข้อ", n)
+    rep.note("โควตาความยาก", "easy %d / medium %d / hard %d" %
+             (diff.get("easy", 0), diff.get("medium", 0), diff.get("hard", 0)))
+    rep.note("การกระจายเฉลย", " ".join("%s%d" % (k, spread[k]) for k in "กขคง"))
+    rep.note("ตัวเลือก", "ทุกข้อมี 4 ตัวเลือกและมีเฉลยเดียว")
+    rep.note("prefix ก./ข. ในเนื้อความ", "ไม่มี")
+    rep.note('ตัวเลือกต้องห้าม "ถูกทุกข้อ"/"ไม่มีข้อถูก"', "ไม่มี")
+    rep.note("solutionSteps", "ครบทุกข้อ")
+    rep.note("ช่องสื่อ", "รูป %d ข้อ · เสียง %d ข้อ (ไม่มีโควตา — ไม่ต้องสั่งเพิ่ม)"
+             % (n_img, n_aud))
 
 
 # ---------------------------------------------------------------- slides
@@ -503,6 +539,36 @@ def check_agents(rep):
 
 
 # ---------------------------------------------------------------- main
+def write_gate_card(path, kind, json_file, rep, rc):
+    """เขียนบัตร "เครื่องตรวจอะไรไปแล้ว" ให้ checkwork อ่านก่อนลงมือ
+
+    เหตุผลที่ต้องเป็นไฟล์ ไม่ใช่ข้อความใน prompt: ถ้าเขียนใน prompt แม่ต้องนึกเอง
+    ทุกครั้งและพิมพ์ซ้ำในทุก prompt ของลูก (รอบก่อนพิมพ์ชุดเดียวกันซ้ำ 11 ที่)
+    เป็นไฟล์แล้วเขียนครั้งเดียว ส่ง path อ่านกี่ตัวก็ได้ และตัวเลขไม่มีทางพิมพ์ผิด
+    """
+    L = ["# ผลตรวจของเครื่อง — %s" % os.path.basename(json_file), "",
+         "> `validate_spec.py %s` รันแล้ว **ผลด้านล่างนี้ไม่ต้องตรวจซ้ำ**" % kind,
+         "> เอาแรงไปตรวจสิ่งที่เครื่องตรวจไม่ได้: ความถูกต้องของเนื้อหา · ความสอดคล้อง"
+         "ภายใน · ความเหมาะกับระดับชั้น · คุณภาพเชิงการสอน", "",
+         "**สรุป: %s**" % ("ผ่านทุก check" if rc == 0 else
+                           "ไม่ผ่าน %d ข้อ (ดูรายการท้ายไฟล์)" % len(rep.problems)), ""]
+    if rep.notes:
+        L += ["## เครื่องวัดไปแล้ว", "", "| สิ่งที่ตรวจ | ค่าที่วัดได้ |", "|---|---|"]
+        L += ["| %s | %s |" % (k, v) for k, v in rep.notes]
+        L.append("")
+    if rep.warns:
+        L += ["## เตือน (ไม่ถึงกับผิด)", ""] + ["- %s" % w for w in rep.warns] + [""]
+    if rep.problems:
+        L += ["## ยังไม่ผ่าน — ต้องแก้ก่อน", ""]
+        L += ["%d. %s" % (i, p) for i, p in enumerate(rep.problems, 1)]
+        L.append("")
+    d = os.path.dirname(path)
+    if d:
+        os.makedirs(d, exist_ok=True)
+    with open(path, "w", encoding="utf-8", newline="\n") as f:
+        f.write("\n".join(L))
+
+
 def main():
     ap = argparse.ArgumentParser(description="ตรวจ artifact JSON ให้ตรงสเปกก่อนส่ง checkwork")
     ap.add_argument("kind", nargs="?", choices=["content", "lesson_plan", "exercise", "slides"])
@@ -511,6 +577,9 @@ def main():
     ap.add_argument("--minutes", type=int, help="เวลาคาบ (period_minutes) สำหรับ lesson_plan")
     ap.add_argument("--agents", action="store_true", help="ตรวจ frontmatter ของ .claude/agents/*.md")
     ap.add_argument("--strict", action="store_true", help="นับ WARN เป็นปัญหาด้วย")
+    ap.add_argument("--report", metavar="PATH",
+                    help="เขียนบัตร 'เครื่องตรวจอะไรไปแล้ว' (ปกติคือ {BASE}_gate.md) "
+                         "เพื่อส่ง path ให้ checkwork อ่าน จะได้ไม่นับซ้ำ")
     a = ap.parse_args()
 
     rep = Report()
@@ -537,7 +606,11 @@ def main():
         check_exercise(data, rep)
     else:
         check_slides(data, rep)
-    return rep.done("%s (%s)" % (a.kind, os.path.basename(a.json_file)), a.strict)
+    rc = rep.done("%s (%s)" % (a.kind, os.path.basename(a.json_file)), a.strict)
+    if a.report:
+        write_gate_card(a.report, a.kind, a.json_file, rep, rc)
+        print("บัตรผลตรวจของเครื่อง -> %s" % a.report)
+    return rc
 
 
 if __name__ == "__main__":

@@ -34,26 +34,34 @@ eduone-py paths.py <gradeSlug> <subjectSlug> <No>
 ได้ keys ที่ใช้ใน skill นี้: **`content_srcpack_md`** (source ที่อ่านก่อน), `content_c1_json`, `content_c1_docx` (C1 ฉบับเต็ม เปิดเมื่อ pack ไม่พอ), `plan_l1_json`, `plan_l1_docx`, `plan_l2_json`, `plan_l2_docx`, `topic_dir`.
 ทุกไฟล์อยู่ใต้ `Output/<GradeToken>/<SubjectToken>/<GradeToken>-<SubjectToken>_U<unit>/<BASE>/2. LessonPlan/` (L1/L2 json+docx co-located). git track เฉพาะ `.json`.
 
-### 2) อ่านเนื้อหาต้นทาง — **source pack ก่อน ถ้าไม่พอค่อยเปิด C1 เต็ม**
-อ่าน **`content_srcpack_md`** (จาก `paths.py` = `…/<BASE>/1. Content/{BASE}_srcpack.md`) ด้วย `Read`
-มี OBJ/COMP · โครงหัวข้อของ C1 · ข้อเท็จจริงแกน · ศัพท์ร่วม · ตัวอย่างหลัก · จุดที่มักเข้าใจผิด
-(พอสำหรับออกแบบกิจกรรมและ derive K/P/A ในกรณีทั่วไป)
+### 2) เตรียมไฟล์ต้นทาง — **★ orchestrator ห้ามอ่านเนื้อหา ส่ง path อย่างเดียว**
 
-**เปิด C1 ฉบับเต็มเมื่อ**: ยังไม่มี srcpack · srcpack ขึ้นว่า "ยังไม่มี digest" ·
-หรือกิจกรรมที่ออกแบบต้องใช้รายละเอียดที่ pack ไม่มี — ยังไม่มี srcpack ให้สร้างก่อนด้วย
-`srcpack.py "<content_c1_json>" "<content_srcpack_md>"`
+ขั้นนี้ทำแค่ **ตรวจว่ามีไฟล์** ด้วย `ls`/`Test-Path` เท่านั้น
 
-C1 ฉบับเต็ม: **อ่าน `content_c1_json` ด้วย `Read`** (เนื้อความอยู่คีย์ `body[]`, สมการเป็น `$...$`)
-ถ้ามีแต่ `.docx` (หัวข้อเก่า) ดึงข้อความด้วย:
 ```bash
-eduone-py read_docx_text.py "<content_c1_docx>"
+ls -l "<content_srcpack_md>" "<content_c1_json>"
 ```
-> **ห้ามเขียน snippet `p.text` ของ python-docx เอง** — มันอ่านแต่ `w:t` ทำให้ **สมการหายทั้งไฟล์**
-> เงียบ ๆ (เคยเกิดจริงกับ ม.1 คณิต 114 จุด) `read_docx_text.py` ดึง OMML ออกมาให้ด้วย
-ข้อความหน้าปก (cover) ของ content ต้องนำมาใช้ **verbatim** ในหน้าปกแผน (รหัสวิชา / วิชา / หน่วย / ตัวชี้วัด / เรื่อง / จุดประสงค์ประจำหน่วย / สาระสำคัญ / จุดประสงค์ประจำคาบ).
+- ยังไม่มี srcpack → สร้างก่อน `eduone-py srcpack.py "<content_c1_json>" "<content_srcpack_md>"`
+- ยังไม่มีบัตรขอบเขตคาบ → `eduone-py scope_card.py <gradeSlug> <subjectSlug> <No> --apply`
+
+> **ทำไมห้ามอ่านเอง**: srcpack ~2.1k โทเคน · C1 เต็ม ~8.1k โทเคน ถ้าแม่ `Read` เอง
+> มันค้างใน context ตลอด pipeline **และยังถูกส่งซ้ำอีกในทุก prompt ของลูก**
+> (writer 1 + checkwork 1) = จ่ายค่าเนื้อหาชุดเดิม 3 เท่า
+> ลูกมี `Read` ครบอยู่แล้ว ให้ลูกอ่านเองใน context ที่ทิ้งได้
+
+> **ถ้าลูกต้องเปิด C1 ฉบับเต็ม** (srcpack ไม่พอ) ให้ลูกอ่าน `content_c1_json` เอง —
+> เนื้อความอยู่คีย์ `body[]`, สมการเป็น `$...$` · ถ้ามีแต่ `.docx` ให้ลูกรัน
+> `eduone-py read_docx_text.py "<content_c1_docx>"`
+> **ห้ามเขียน snippet `p.text` ของ python-docx เอง** — มันอ่านแต่ `w:t` ทำให้ **สมการหาย
+> ทั้งไฟล์เงียบ ๆ** (เคยเกิดจริงกับ ม.1 คณิต 114 จุด) `read_docx_text.py` ดึง OMML ให้ด้วย
+
+หน้าปกแผนต้อง **verbatim** เท่ากับหน้าปก C1 ทั้ง 7 แถว — ให้ writer คัดจาก `content_c1_json`
+เอง (orchestrator ไม่ต้องอ่านมาแปะ) `validate_spec --ref` จะเทียบให้อีกชั้น
 
 ### 3) เรียก sub-agent `lesson-plan-writer`
-ส่ง: metadata JSON เต็ม, ข้อความ C1, `period_minutes`, BASE, path output spec.
+ส่ง **path เท่านั้น**: `content_srcpack_md`, `content_c1_json`, `scope_md` (บัตรขอบเขตคาบ),
+metadata JSON (เล็ก), `period_minutes`, BASE, path output spec.
+**ห้ามแปะเนื้อความ C1 ลงใน prompt**
 ให้ writer เขียน 2 ไฟล์ spec (path จาก `paths.py`, co-located ใน `2. LessonPlan/`):
 - `plan_l1_json`  = `…/<BASE>/2. LessonPlan/{BASE}_L1.json` (แบบที่ 1 เชิงสำรวจ Inquiry-Based)
 - `plan_l2_json`  = `…/<BASE>/2. LessonPlan/{BASE}_L2.json` (แบบที่ 2 ผ่านกิจกรรม Activity-Based)
@@ -75,7 +83,8 @@ done
 > **checkwork มีไว้ตรวจความถูกต้องของเนื้อหา ความสอดคล้องภายใน และคุณภาพเชิงการสอน**
 
 ### 4) เรียก `lesson-plan-checkwork` (loop ≤ 2)
-ส่ง path ของ json 2 ไฟล์ + metadata + ข้อความ C1. checkwork อ่านอย่างเดียว ออก `VERDICT: PASS/FAIL` + รายการแก้.
+ส่ง **path เท่านั้น**: json 2 ไฟล์ + `content_srcpack_md` + `scope_md` + metadata
+(**ห้ามแปะเนื้อความ C1**) checkwork อ่านอย่างเดียว ออก `VERDICT: PASS/FAIL` + รายการแก้.
 - PASS → ไปข้อ 5
 - FAIL → ส่งรายการแก้กลับให้ writer แก้เฉพาะจุด แล้ว check ซ้ำ. **วนได้ไม่เกิน 2 รอบ** ถ้ายัง FAIL ให้รายงานปัญหาที่เหลือ.
 

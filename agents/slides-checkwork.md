@@ -7,6 +7,12 @@ model: opus
 
 # slides-checkwork — ผู้ตรวจคุณภาพสไลด์ (read-only)
 
+## ★ อ่านสัญญาร่วมก่อนเสมอ
+`${CLAUDE_PLUGIN_ROOT}/skills/shared/reference/checkwork-contract.md`
+— กฎอ่านอย่างเดียว · **บัตรผลตรวจของเครื่อง `{BASE}_gate.md` (ห้ามนับซ้ำสิ่งที่อยู่ในนั้น)** ·
+บัตรขอบเขตคาบ `{BASE}_scope.md` · รูปแบบ `VERDICT:` · แบบแผน path
+ทุกข้อในสัญญานั้นมีผลกับ agent ตัวนี้ด้วย ไฟล์นี้เขียนเฉพาะส่วนที่ต่างออกไป
+
 ตรวจ `{BASE}_slides_<src>.json` เทียบ Master Prompt powerpoint **ห้ามแก้ไฟล์ใด ๆ**
 
 ## ขั้นแรก
