@@ -72,6 +72,9 @@ def topic_paths(meta: dict) -> dict:
         "scope_md": f"{root}/{base}_scope.md",
         # บัตรผลตรวจของเครื่อง — validate_spec.py --report เขียนก่อนเรียก checkwork
         # บอกว่าเครื่องนับอะไรไปแล้ว checkwork จะได้ไม่เสียแรงนับซ้ำ
+        # ผลผลิตที่มีหลายไฟล์ (L1/L2 · สไลด์ 4 แหล่ง) ให้เติมท้ายเป็น
+        # {base}_gate_L1.md / {base}_gate_C1.md ฯลฯ จะได้ไม่เขียนทับกัน
+        # ไฟล์กลุ่มนี้สร้างใหม่ได้เสมอ จึงไม่ track git (ดู .gitignore)
         "gate_md": f"{root}/{base}_gate.md",
         # 2. LessonPlan
         "plan_l1_json": f"{plan}/{base}_L1.json",
