@@ -27,15 +27,18 @@ irm https://raw.githubusercontent.com/otyping/eduone-plugin/main/install.ps1 | i
 ไม่มีขั้นไหนติดตั้งอะไรโดยไม่ได้รับคำตอบ และ **รันซ้ำได้** ถ้าครั้งแรกยังไม่ครบ
 
 ```
-== 1/5  Claude Code ==
+== 1/6  Claude Code ==
   [ขาด]   ยังไม่มี Claude Code - เป็นตัวหลักที่ใช้ทำงาน ขาดไม่ได้
   ติดตั้ง Claude Code เลยไหม [Y=ตกลง / N=ข้าม]: y
-== 2/5  Git for Windows ==
+== 2/6  Git for Windows ==
   [มีแล้ว] git version 2.51.0
-== 3/5  Python 3.12 ==
+== 3/6  Python 3.12 ==
   [ขาด]   ไม่พบ Python 3.12
   ติดตั้งด้วย winget ไหม [Y=ตกลง / N=ข้าม]: y
 ...
+== 6/6  คำสั่ง eduone-py ในเทอร์มินัลของคุณ ==
+  [ขาด]   ยังไม่ได้ตั้ง - เปิดเทอร์มินัลเองแล้วพิมพ์ eduone-py จะขึ้นว่าไม่รู้จักคำสั่ง
+  เพิ่มให้เลยไหม (ต่อท้ายไฟล์ profile ของเดิมไม่หาย) [Y=ตกลง / N=ข้าม]: y
 ```
 
 จบแล้วมันจะรันตัวตรวจให้เองและบอกว่าพร้อมหรือยัง
@@ -80,9 +83,9 @@ python --version
 
 **Windows (PowerShell)**
 ```powershell
-$p = (Get-ChildItem "$env:USERPROFILE\.claude\plugins\cache\eduone\edu-one" -Directory | Select-Object -Last 1).FullName
-pip install -r "$p
-equirements.txt"
+$p = (Get-ChildItem "$env:USERPROFILE\.claude\plugins\cache\eduone\edu-one" -Directory |
+      Sort-Object { $_.Name -as [version] } | Select-Object -Last 1).FullName
+pip install -r "$p\requirements.txt"
 ```
 
 **macOS / Linux**
@@ -99,6 +102,46 @@ mkdir eduone-work && cd eduone-work
 ```
 
 อยากวางไว้ที่อื่นให้ตั้ง `EDUONE_WORK_DIR` ชี้ไปที่นั่น
+
+### 5. ทำให้เทอร์มินัลของคุณรู้จัก `eduone-py`
+
+Claude Code เติม `bin/` ของปลั๊กอินเข้า PATH ให้เฉพาะตอนที่**ตัวมันเอง**รันคำสั่ง
+หน้าต่างเทอร์มินัลที่คุณเปิดเอง — หน้าต่างที่ใช้รัน `doctor.py` กับ `watch.py` —
+จึงยังไม่รู้จัก ต้องตั้งให้ครั้งเดียว (ตัวช่วยติดตั้งบน Windows ทำข้อนี้ให้แล้ว)
+
+**Windows (PowerShell)**
+```powershell
+$p = $PROFILE.CurrentUserAllHosts
+if (-not (Test-Path $p)) { New-Item -ItemType File -Path $p -Force | Out-Null }
+Add-Content -Path $p -Value @'
+
+function eduone-py {
+    $root = "$env:USERPROFILE\.claude\plugins\cache\eduone\edu-one"
+    $bin  = (Get-ChildItem "$root\*\bin" -Directory -ErrorAction SilentlyContinue |
+             Sort-Object { $_.Parent.Name -as [version] } | Select-Object -Last 1).FullName
+    if (-not $bin) { Write-Error "eduone-py: edu-one plugin not installed"; return }
+    & "$bin\eduone-py.cmd" @args
+}
+'@
+. $p
+```
+
+**macOS / Linux** (ใช้ bash ให้เปลี่ยน `~/.zshrc` เป็น `~/.bashrc` ทั้งสองแห่ง)
+```bash
+cat >> ~/.zshrc <<'EOF'
+
+eduone-py() {
+  local bin=$(ls -d ~/.claude/plugins/cache/eduone/edu-one/*/bin 2>/dev/null | sort -V | tail -1)
+  if [ -z "$bin" ]; then echo "eduone-py: edu-one plugin not found" >&2; return 1; fi
+  "$bin/eduone-py" "$@"
+}
+EOF
+source ~/.zshrc
+```
+
+> ★ ฟังก์ชันนี้**หาเวอร์ชันล่าสุดเองตอนเรียก** ไม่ฝังเลขเวอร์ชันไว้ — path ของปลั๊กอิน
+> มีเลขเวอร์ชันอยู่ (`…/edu-one/3.0.3/bin`) ถ้าเอา path ไปใส่ PATH ตรง ๆ
+> พออัปเดตปลั๊กอินครั้งเดียวก็พังทันที
 
 ---
 
@@ -128,6 +171,8 @@ eduone-py doctor.py
   [ok]  sub-agent ครบ 16 ตัว
   [ok]  สกิลครบ 8 ตัว
   [ok]  หลักสูตรที่มี 4 คู่: m1-math p1-sci p4-english p4-sci
+== คำสั่ง eduone-py ในเทอร์มินัลของคุณ ==
+  [!]   หน้าต่างเทอร์มินัลที่คุณเปิดเองยังไม่รู้จัก eduone-py ...
 == โฟลเดอร์งาน ==
   [ok]  ผลผลิตจะลงที่ ...\eduone-work\Output
 ```

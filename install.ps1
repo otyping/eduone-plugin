@@ -45,7 +45,9 @@ function Find-Python312 {
 function Get-PluginDir {
     $base = "$env:USERPROFILE\.claude\plugins\cache\eduone\edu-one"
     if (-not (Test-Path $base)) { return $null }
-    $d = Get-ChildItem $base -Directory -ErrorAction SilentlyContinue | Sort-Object Name | Select-Object -Last 1
+    # เรียงแบบเวอร์ชันจริง - Sort-Object Name จะตัดสินว่า 3.0.9 ใหม่กว่า 3.0.10
+    $d = Get-ChildItem $base -Directory -ErrorAction SilentlyContinue |
+         Sort-Object { $_.Name -as [version] } | Select-Object -Last 1
     if ($d) { return $d.FullName }
     return $null
 }
@@ -55,7 +57,7 @@ Write-Host "  EDU ONE - ติดตั้งเครื่องมือผ�
 Write-Host "  จะถามก่อนทุกขั้น ไม่ติดตั้งอะไรเองโดยไม่ได้รับคำตอบ"
 
 # ---------------------------------------------------------------- 1 Claude Code
-Head "1/5  Claude Code"
+Head "1/6  Claude Code"
 $claude = Get-Command claude -ErrorAction SilentlyContinue
 if ($claude) {
     Good "$((& claude --version) -join ' ')"
@@ -72,7 +74,7 @@ if ($claude) {
 }
 
 # ---------------------------------------------------------------- 2 Git for Windows
-Head "2/5  Git for Windows"
+Head "2/6  Git for Windows"
 if (Get-Command git -ErrorAction SilentlyContinue) {
     Good ((& git --version) -join ' ')
 } else {
@@ -85,7 +87,7 @@ if (Get-Command git -ErrorAction SilentlyContinue) {
 }
 
 # ---------------------------------------------------------------- 3 Python 3.12
-Head "3/5  Python 3.12"
+Head "3/6  Python 3.12"
 $py = Find-Python312
 if ($py) {
     Good "$py"
@@ -108,7 +110,7 @@ if ($py) {
 }
 
 # ---------------------------------------------------------------- 4 ปลั๊กอิน
-Head "4/5  ปลั๊กอิน edu-one"
+Head "4/6  ปลั๊กอิน edu-one"
 if (-not $claude) {
     Miss "ข้ามไปก่อน เพราะยังไม่มี Claude Code"
     $script:todo += "ปลั๊กอิน edu-one"
@@ -134,7 +136,7 @@ if (-not $claude) {
 }
 
 # ---------------------------------------------------------------- 5 แพ็กเกจ Python
-Head "5/5  แพ็กเกจ Python"
+Head "5/6  แพ็กเกจ Python"
 $plug = Get-PluginDir
 if (-not $py) {
     Miss "ข้ามไปก่อน เพราะยังไม่มี Python 3.12"
@@ -150,6 +152,65 @@ if (-not $py) {
         Good "ติดตั้งแพ็กเกจแล้ว"
     } else {
         $script:todo += "แพ็กเกจ Python"
+    }
+}
+
+# ------------------------------------------- 6 คำสั่ง eduone-py ในเทอร์มินัลของพนักงาน
+Head "6/6  คำสั่ง eduone-py ในเทอร์มินัลของคุณ"
+Say "  Claude Code รู้จักคำสั่งนี้เองอยู่แล้ว แต่หน้าต่างเทอร์มินัลที่คุณเปิดเองยังไม่รู้จัก"
+Say "  ซึ่งเป็นหน้าต่างที่ใช้รัน  eduone-py watch.py  ตามที่เว็บบอกระหว่างรองาน"
+
+# เขียนลง profile แบบ AllHosts เพื่อให้ console, Windows Terminal และเทอร์มินัลใน VS Code
+# เห็นเหมือนกันหมด · ถ้าเครื่องมี PowerShell ทั้งสอง edition (5.1 คู่กับ 7) ก็เขียนให้ทั้งคู่
+# เพราะคนละ edition คนละไฟล์ profile - ตั้งให้ตัวเดียวแล้วไปเปิดอีกตัวจะงงว่าทำไมไม่มี
+$profiles = @($PROFILE.CurrentUserAllHosts)
+$other = if ($PSVersionTable.PSEdition -eq "Core") {
+    # .Replace() ไม่ใช่ -replace เพราะอันหลังเป็น regex แล้ว \ ต้อง escape ซ้อน
+    $PROFILE.CurrentUserAllHosts.Replace("\PowerShell\", "\WindowsPowerShell\")
+} else {
+    $PROFILE.CurrentUserAllHosts.Replace("\WindowsPowerShell\", "\PowerShell\")
+}
+if ($other -ne $PROFILE.CurrentUserAllHosts -and (Test-Path (Split-Path $other))) {
+    $profiles += $other
+}
+
+# ★ ตัวฟังก์ชันเป็น ASCII ล้วนโดยตั้งใจ - profile ของพนักงานอาจถูกเขียนด้วย encoding อื่น
+#   มาก่อน ถ้าต่อท้ายด้วยข้อความไทยจะได้ BOM กลางไฟล์ แล้วบรรทัดไทยเพี้ยนทั้งไฟล์
+# ★ หาเวอร์ชันตอนเรียก ไม่ฝังเลขเวอร์ชันไว้ - path มีเลขเวอร์ชันอยู่ (…\edu-one\3.0.3\bin)
+#   ถ้าฝังไว้ พออัปเดตปลั๊กอินครั้งเดียวก็พังทันที
+$fn = @'
+
+# EDU ONE - call eduone-py from your own terminal (resolves the newest plugin version)
+function eduone-py {
+    $root = "$env:USERPROFILE\.claude\plugins\cache\eduone\edu-one"
+    $bin  = (Get-ChildItem "$root\*\bin" -Directory -ErrorAction SilentlyContinue |
+             Sort-Object { $_.Parent.Name -as [version] } | Select-Object -Last 1).FullName
+    if (-not $bin) { Write-Error "eduone-py: edu-one plugin not installed"; return }
+    & "$bin\eduone-py.cmd" @args
+}
+'@
+
+$need = @()
+foreach ($f in $profiles) {
+    if ((Test-Path $f) -and ((Get-Content -Raw $f) -match "function eduone-py")) {
+        Good "ตั้งไว้แล้ว: $f"
+    } else {
+        $need += $f
+    }
+}
+if ($need.Count -gt 0) {
+    Miss "ยังไม่ได้ตั้ง - เปิดเทอร์มินัลเองแล้วพิมพ์ eduone-py จะขึ้นว่าไม่รู้จักคำสั่ง"
+    if (Ask "  เพิ่มให้เลยไหม (ต่อท้ายไฟล์ profile ของเดิมไม่หาย)") {
+        foreach ($f in $need) {
+            # ห้ามใช้ New-Item -Force กับไฟล์ที่มีอยู่แล้ว มันล้างไฟล์ทิ้ง
+            if (-not (Test-Path $f)) { New-Item -ItemType File -Path $f -Force | Out-Null }
+            Add-Content -Path $f -Value $fn
+            Good "เพิ่มแล้ว: $f"
+        }
+        try { . $PROFILE.CurrentUserAllHosts } catch {}
+        Say "  หน้าต่างที่เปิดค้างอยู่ ต้องปิดแล้วเปิดใหม่ก่อนถึงจะรู้จักคำสั่งนี้"
+    } else {
+        $script:todo += "คำสั่ง eduone-py"
     }
 }
 

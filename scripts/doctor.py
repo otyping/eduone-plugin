@@ -110,6 +110,48 @@ if need(bool(claude), f"พบที่ {claude}", "ไม่พบคำสั�
     except Exception as exc:
         print(WARN + f"เรียก claude plugin list ไม่สำเร็จ: {exc}")
 
+# ---------------------------------------------------------------- เทอร์มินัลของพนักงานเอง
+head("คำสั่ง eduone-py ในเทอร์มินัลของคุณ")
+# Claude Code เติม bin/ ของปลั๊กอินเข้า PATH ให้เฉพาะตอนที่ตัวมันเองรันคำสั่ง — หน้าต่าง
+# เทอร์มินัลที่พนักงานเปิดเอง (หน้าต่างที่ใช้รัน watch.py ตามที่เว็บบอก) จึงไม่รู้จัก
+# ต้องถามเชลล์จริง ๆ โดย **ตัด bin ของปลั๊กอินออกจาก PATH ก่อน** ไม่งั้นตอนรันผ่าน
+# eduone-py เองจะผ่านแบบหลอก ๆ ทุกครั้ง ทั้งที่หน้าต่างของพนักงานยังใช้ไม่ได้
+
+
+def own_shell_knows_eduone_py() -> bool:
+    if os.name == "nt":
+        env = dict(os.environ)
+        env["PATH"] = os.pathsep.join(
+            d for d in env.get("PATH", "").split(os.pathsep)
+            if not ("eduone" in d.lower() and "plugins" in d.lower()))
+        try:
+            # ไม่ใส่ -NoProfile โดยตั้งใจ — ที่อยากรู้คือ "profile ตั้งให้แล้วหรือยัง"
+            r = subprocess.run(
+                ["powershell", "-NoLogo", "-NonInteractive", "-Command",
+                 "if (Get-Command eduone-py -ErrorAction SilentlyContinue) { 'yes' }"],
+                capture_output=True, text=True, encoding="utf-8", errors="replace",
+                env=env, timeout=60)
+            return "yes" in (r.stdout or "")
+        except Exception:
+            return False
+    home = Path.home()
+    return any(f.is_file() and "eduone-py" in f.read_text(encoding="utf-8", errors="replace")
+               for f in (home / ".zshrc", home / ".bashrc",
+                         home / ".bash_profile", home / ".profile"))
+
+
+FIX_OWN_SHELL = (
+    "รันตัวช่วยติดตั้งซ้ำ (ข้อ 6/6 จะเพิ่มให้):  "
+    "irm https://raw.githubusercontent.com/otyping/eduone-plugin/main/install.ps1 | iex"
+    if os.name == "nt" else
+    "เพิ่มฟังก์ชัน eduone-py ใน ~/.zshrc — ดูขั้นที่ 2 ที่ https://eduone.ovecaicenter.com")
+
+need(own_shell_knows_eduone_py(),
+     "เทอร์มินัลของคุณรู้จัก eduone-py แล้ว — รัน watch.py ระหว่างรองานได้",
+     "หน้าต่างเทอร์มินัลที่คุณเปิดเองยังไม่รู้จัก eduone-py (ใน Claude Code ใช้ได้อยู่แล้ว) "
+     f"· {FIX_OWN_SHELL}",
+     fatal=False)
+
 # ---------------------------------------------------------------- ที่ทำงาน
 head("โฟลเดอร์งาน")
 sys.path.insert(0, str(SHARED / "scripts"))
