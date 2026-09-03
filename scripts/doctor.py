@@ -118,38 +118,55 @@ head("คำสั่ง eduone-py ในเทอร์มินัลของ
 # eduone-py เองจะผ่านแบบหลอก ๆ ทุกครั้ง ทั้งที่หน้าต่างของพนักงานยังใช้ไม่ได้
 
 
-def own_shell_knows_eduone_py() -> bool:
+def own_shell_knows_eduone_py() -> tuple[bool, str]:
+    """คืน (เชลล์ของผู้ใช้รู้จักไหม, ExecutionPolicy)
+
+    ตัวหลังจำเป็น เพราะสาเหตุที่พบบ่อยที่สุดไม่ใช่ "ยังไม่ได้ตั้ง" แต่คือ **ตั้งแล้วแต่
+    Windows ไม่ยอมโหลด profile** (ExecutionPolicy = Restricted ซึ่งเป็นค่าเริ่มต้น)
+    ซึ่งมองจากภายนอกเหมือนกันเป๊ะ แต่แก้คนละวิธี
+    """
     if os.name == "nt":
         env = dict(os.environ)
         env["PATH"] = os.pathsep.join(
             d for d in env.get("PATH", "").split(os.pathsep)
             if not ("eduone" in d.lower() and "plugins" in d.lower()))
+        # ใช้ single quote ล้วนในฝั่ง PowerShell — double quote ในอาร์กิวเมนต์จะโดน
+        # กฎ quoting ของ Windows แปลงจนเพี้ยน
+        ps = ("$c = if (Get-Command eduone-py -ErrorAction SilentlyContinue) "
+              "{ 'yes' } else { 'no' }; "
+              "'cmd=' + $c + ' policy=' + (Get-ExecutionPolicy)")
         try:
             # ไม่ใส่ -NoProfile โดยตั้งใจ — ที่อยากรู้คือ "profile ตั้งให้แล้วหรือยัง"
-            r = subprocess.run(
-                ["powershell", "-NoLogo", "-NonInteractive", "-Command",
-                 "if (Get-Command eduone-py -ErrorAction SilentlyContinue) { 'yes' }"],
-                capture_output=True, text=True, encoding="utf-8", errors="replace",
-                env=env, timeout=60)
-            return "yes" in (r.stdout or "")
+            r = subprocess.run(["powershell", "-NoLogo", "-NonInteractive", "-Command", ps],
+                               capture_output=True, text=True, encoding="utf-8",
+                               errors="replace", env=env, timeout=60)
+            for line in (r.stdout or "").splitlines():
+                if line.startswith("cmd="):
+                    return "cmd=yes" in line, line.split("policy=")[-1].strip()
         except Exception:
-            return False
+            pass
+        return False, ""
     home = Path.home()
-    return any(f.is_file() and "eduone-py" in f.read_text(encoding="utf-8", errors="replace")
-               for f in (home / ".zshrc", home / ".bashrc",
-                         home / ".bash_profile", home / ".profile"))
+    found = any(f.is_file() and "eduone-py" in f.read_text(encoding="utf-8", errors="replace")
+                for f in (home / ".zshrc", home / ".bashrc",
+                          home / ".bash_profile", home / ".profile"))
+    return found, ""
 
 
-FIX_OWN_SHELL = (
-    "รันตัวช่วยติดตั้งซ้ำ (ข้อ 6/6 จะเพิ่มให้):  "
-    "irm https://raw.githubusercontent.com/otyping/eduone-plugin/main/install.ps1 | iex"
-    if os.name == "nt" else
-    "เพิ่มฟังก์ชัน eduone-py ใน ~/.zshrc — ดูขั้นที่ 2 ที่ https://eduone.ovecaicenter.com")
+own_ok, own_policy = own_shell_knows_eduone_py()
+if own_policy in ("Restricted", "AllSigned"):
+    fix_own = (f"PowerShell ไม่ยอมโหลด profile เลย (ExecutionPolicy = {own_policy}) — "
+               "แก้ด้วย  Set-ExecutionPolicy -Scope CurrentUser RemoteSigned  "
+               "(ไม่ต้องใช้สิทธิ์ผู้ดูแล) แล้วเปิดหน้าต่างใหม่")
+elif os.name == "nt":
+    fix_own = ("รันตัวช่วยติดตั้งซ้ำ (ข้อ 6/6 จะเพิ่มให้):  "
+               "irm https://raw.githubusercontent.com/otyping/eduone-plugin/main/install.ps1 | iex")
+else:
+    fix_own = "เพิ่มฟังก์ชัน eduone-py ใน ~/.zshrc — ดูขั้นที่ 5 ใน README ของปลั๊กอิน"
 
-need(own_shell_knows_eduone_py(),
+need(own_ok,
      "เทอร์มินัลของคุณรู้จัก eduone-py แล้ว — รัน watch.py ระหว่างรองานได้",
-     "หน้าต่างเทอร์มินัลที่คุณเปิดเองยังไม่รู้จัก eduone-py (ใน Claude Code ใช้ได้อยู่แล้ว) "
-     f"· {FIX_OWN_SHELL}",
+     f"หน้าต่างเทอร์มินัลที่คุณเปิดเองยังไม่รู้จัก eduone-py (ใน Claude Code ใช้ได้อยู่แล้ว) · {fix_own}",
      fatal=False)
 
 # ---------------------------------------------------------------- ที่ทำงาน

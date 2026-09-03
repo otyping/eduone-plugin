@@ -214,6 +214,30 @@ if ($need.Count -gt 0) {
     }
 }
 
+# ★ เขียนฟังก์ชันลง profile สำเร็จ ไม่ได้แปลว่าจะใช้ได้ — ค่าเริ่มต้นของ Windows คือ
+#   ExecutionPolicy = Restricted ซึ่งแปลว่า **ไม่โหลด profile เลย** ฟังก์ชันที่เพิ่งเขียน
+#   จึงตายเงียบ ๆ ทั้งที่ไฟล์ถูกต้องทุกตัวอักษร (เจอจริงบนเครื่องผู้ดูแลตอนออก 3.0.3)
+#   `irm | iex` ไม่โดนกฎนี้เพราะรันจากสตริง ไม่ใช่จากไฟล์ ตัวช่วยจึงติดตั้งผ่านมาได้ปกติ
+$hasFn = (Test-Path $PROFILE.CurrentUserAllHosts) -and
+         ((Get-Content -Raw $PROFILE.CurrentUserAllHosts) -match "function eduone-py")
+if ($hasFn) {
+    $ep = Get-ExecutionPolicy
+    if ($ep -eq "Restricted" -or $ep -eq "AllSigned") {
+        Miss "PowerShell ตั้งไว้ไม่ให้โหลด profile (ExecutionPolicy = $ep) ฟังก์ชันที่เขียนไปจะไม่ทำงาน"
+        $gpo = @((Get-ExecutionPolicy -Scope MachinePolicy), (Get-ExecutionPolicy -Scope UserPolicy))
+        if ($gpo -contains "Restricted" -or $gpo -contains "AllSigned") {
+            Bad "ค่านี้ถูกบังคับมาจาก Group Policy ขององค์กร - ต้องให้ฝ่ายไอทีแก้ให้"
+            $script:todo += "ExecutionPolicy"
+        } elseif (Ask "  ตั้งเป็น RemoteSigned เฉพาะบัญชีคุณไหม (ไม่ต้องใช้สิทธิ์ผู้ดูแล)") {
+            Set-ExecutionPolicy -Scope CurrentUser RemoteSigned -Force
+            Good "ตั้งแล้ว: CurrentUser = $(Get-ExecutionPolicy -Scope CurrentUser)"
+            Say "  RemoteSigned = สคริปต์ที่เขียนเองรันได้ ที่โหลดมาจากเน็ตยังต้องมีลายเซ็น"
+        } else {
+            $script:todo += "ExecutionPolicy"
+        }
+    }
+}
+
 # ---------------------------------------------------------------- โฟลเดอร์งาน
 Head "โฟลเดอร์งาน"
 Say "  ผลผลิตทุกชิ้นจะลงที่นี่ แยกจากตัวปลั๊กอิน"

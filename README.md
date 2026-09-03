@@ -126,6 +126,18 @@ function eduone-py {
 . $p
 ```
 
+> ⚠️ **Windows: เขียนลง profile แล้วยังไม่พอ** — ค่าเริ่มต้นของ Windows คือ
+> `ExecutionPolicy = Restricted` ซึ่งแปลว่า **ไม่โหลด profile เลย** ฟังก์ชันข้างบน
+> จะตายเงียบ ๆ ทั้งที่ไฟล์ถูกต้องทุกตัวอักษร เช็กด้วย `Get-ExecutionPolicy`
+> ถ้าได้ `Restricted` หรือ `AllSigned` ให้รัน (ไม่ต้องใช้สิทธิ์ผู้ดูแล):
+>
+> ```powershell
+> Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+> ```
+>
+> ตัวช่วยติดตั้งข้อ 6/6 ตรวจและเสนอให้อัตโนมัติแล้ว · `irm | iex` ไม่โดนกฎนี้
+> เพราะรันจากสตริงไม่ใช่จากไฟล์ ตอนติดตั้งจึงผ่านมาได้ตามปกติ
+
 **macOS / Linux** (ใช้ bash ให้เปลี่ยน `~/.zshrc` เป็น `~/.bashrc` ทั้งสองแห่ง)
 ```bash
 cat >> ~/.zshrc <<'EOF'
