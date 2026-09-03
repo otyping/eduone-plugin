@@ -104,6 +104,24 @@ def log(msg: str) -> None:
         pass
 
 
+#: ตัวนับข้อความซ้ำของ log_quiet — เว็บล่มทีเดียวได้บรรทัดเดิมวันละพันบรรทัด
+_repeat: dict[str, int] = {}
+
+
+def log_quiet(msg: str, every: int = 20) -> None:
+    """ข้อความเดิมซ้ำ ๆ พิมพ์ครั้งแรกครั้งเดียว แล้วย้ำทุก `every` ครั้ง
+
+    เว็บล่มหรือโทเคนหมดอายุ = ตัวรับงานพูดประโยคเดิมทุก 30 วินาทีไม่หยุด บันทึกจริง
+    จมหายไปกับมัน และพนักงานที่เปิดหน้าต่างที่ย่อไว้ขึ้นมาดูก็อ่านไม่ออกว่าเกิดอะไรขึ้น
+    """
+    n = _repeat.get(msg, 0)
+    _repeat[msg] = n + 1
+    if n == 0:
+        log(msg)
+    elif n % every == 0:
+        log(f"{msg}  (ซ้ำครั้งที่ {n + 1})")
+
+
 def take_lock() -> socket.socket | None:
     """ล็อกตัวเดียวด้วยพอร์ต ไม่ใช่ไฟล์
 
@@ -145,15 +163,18 @@ class Web:
     def __init__(self, cfg: dict) -> None:
         self.cfg = cfg
         self.machine_id = 0
+        self.last_error = ""      #: ตัวเรียกต้องแยกให้ออกว่า "เน็ตสะดุด" หรือ "โทเคนตาย"
 
     def call(self, fn, *a, **kw):
         try:
             return fn(self.cfg, *a, **kw)
         except web.WebError as exc:
-            log(f"เว็บไม่ตอบ: {exc}")
+            self.last_error = str(exc)
+            log_quiet(f"เว็บไม่ตอบ: {exc}")
             return None
         except Exception as exc:                   # noqa: BLE001
-            log(f"คุยกับเว็บพลาด: {exc}")
+            self.last_error = str(exc)
+            log_quiet(f"คุยกับเว็บพลาด: {exc}")
             return None
 
     def hello(self) -> bool:
@@ -453,16 +474,28 @@ def main() -> int:
 
     log(f"ตัวรับงานเริ่มทำงาน · โฟลเดอร์งาน {WORK_ROOT}")
     idle = 0
+    down = 0                      #: ทักเว็บไม่ติดติดกันกี่รอบแล้ว
     while True:
         cfg = web.config()
         if not cfg:
-            log("ยังไม่ได้ตั้งค่าที่อยู่เว็บกับโทเคน — รอไปก่อน (รันตัวช่วยติดตั้งข้อ 7)")
+            log_quiet("ยังไม่ได้ตั้งค่าที่อยู่เว็บกับโทเคน — รอไปก่อน (รันตัวช่วยติดตั้งข้อ 7)")
             time.sleep(60)
             continue
         wb = Web(cfg)
         if not wb.hello():
+            # ★ 401/403 = โทเคนตาย ไม่ใช่เน็ตสะดุด — รอไปอีกกี่ชั่วโมงก็ไม่หายเอง
+            #   ต้องบอกให้ชัดว่าไปกดตรงไหน ไม่ใช่พ่น "HTTP 401 Unauthorized" ซ้ำ ๆ
+            #   ให้พนักงานที่ไม่ได้เป็นคนสายคอมนั่งอ่าน (เกิดจริงกับเครื่องแรกที่ติดตั้ง)
+            if "HTTP 401" in wb.last_error or "HTTP 403" in wb.last_error:
+                log_quiet(f"โทเคนใช้ไม่ได้แล้ว — เปิด {cfg['url']}/me/tokens ออกใบใหม่ "
+                          f"แล้ววางทับใน {web.CONFIG_FILE} (หรือรันตัวช่วยติดตั้งซ้ำ ข้อ 7/7)")
+            down += 1
             time.sleep(30)
             continue
+        if down:
+            _repeat.clear()       # พังใหม่คราวหน้าจะได้พิมพ์เต็มอีกครั้ง ไม่ถูกกลืนหายไป
+            log(f"ต่อเว็บได้แล้ว (พลาดไป {down} รอบ)")
+            down = 0
 
         run = wb.next_run()
         if not run:

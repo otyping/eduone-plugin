@@ -1,9 +1,14 @@
-﻿# EDU ONE - ตัวช่วยติดตั้งสำหรับเครื่องพนักงาน (Windows)
+# EDU ONE - ตัวช่วยติดตั้งสำหรับเครื่องพนักงาน (Windows)
 #
 #   irm https://raw.githubusercontent.com/otyping/eduone-plugin/main/install.ps1 | iex
 #
 # ออกแบบให้ "ถามก่อนทำทุกครั้ง" - ไม่มีขั้นไหนติดตั้งอะไรโดยไม่ได้รับคำตอบ
 # รันซ้ำได้ปลอดภัย ข้ามสิ่งที่มีอยู่แล้ว
+#
+# ★ ไฟล์นี้ต้องเป็น UTF-8 "ไม่มี BOM" - ต่างจาก .ps1 อื่นทั้งรีโป
+#   irm ส่งข้อความที่ยังมีอักขระ BOM (U+FEFF) ติดหัวมาให้ iex ตรง ๆ บรรทัดแรกจึงไม่ถูก
+#   อ่านเป็นคอมเมนต์อีกต่อไป กลายเป็นคำสั่งชื่อ "<BOM>#" ที่มี (Windows) เป็นอาร์กิวเมนต์
+#   PowerShell เลยไปหาคำสั่งชื่อ Windows แล้วขึ้น error สีแดงคาหน้าจอพนักงานทุกครั้ง
 
 $ErrorActionPreference = "Stop"
 $script:todo = @()
@@ -19,6 +24,23 @@ function Ask($q) {
         $a = Read-Host "$q [Y=ตกลง / N=ข้าม]"
         if ($a -eq "" -or $a -match '^[Yy]') { return $true }
         if ($a -match '^[Nn]') { return $false }
+    }
+}
+
+function Test-WebToken($url, $token) {
+    # คืน "OK" / "BAD" / "NET:<เหตุผล>" - มีไฟล์ config ไม่ได้แปลว่าโทเคนยังใช้ได้
+    # 404 = โทเคนผ่านด่านแล้ว แค่ไม่มีใบสั่งทดสอบชื่อนี้ ซึ่งเป็นคำตอบที่ถูกของการทดสอบ
+    try {
+        Invoke-WebRequest -Uri "$($url.TrimEnd('/'))/api/jobs/find?base=__probe__" `
+            -Headers @{ Authorization = "Bearer $token" } `
+            -UseBasicParsing -TimeoutSec 15 | Out-Null
+        return "OK"
+    } catch {
+        $sc = 0
+        if ($_.Exception.Response) { $sc = [int]$_.Exception.Response.StatusCode }
+        if ($sc -eq 404) { return "OK" }
+        if ($sc -eq 401 -or $sc -eq 403) { return "BAD" }
+        return "NET:$($_.Exception.Message)"
     }
 }
 
@@ -267,19 +289,42 @@ Say "  ตั้งค่านี้แล้ว เครื่องจะร
 Say "  ทีมจึงเห็นสถานะบนเว็บโดยไม่ต้องถามกันทีละคน · ไม่ตั้งก็ทำงานได้ปกติ แค่เว็บไม่รู้เรื่อง"
 
 $cfgFile = Join-Path $env:USERPROFILE ".eduone\config.json"
-$haveCfg = $false
+$haveCfg  = $false
+$tokenBad = $false
+$c = $null
 if (Test-Path $cfgFile) {
     try {
         $c = Get-Content -Raw $cfgFile | ConvertFrom-Json
         if ($c.url -and $c.token) { $haveCfg = $true; Good "ตั้งไว้แล้ว: $($c.url)  ($cfgFile)" }
     } catch { }
 }
+
+# ★ ยิงจริงดูว่าโทเคนยังใช้ได้ไหม - "มีไฟล์" กับ "ใช้ได้" คนละเรื่องกัน
+#   โทเคนถูกเพิกถอนหรือฐานข้อมูลเว็บถูกล้าง = ตรงนี้ยังขึ้นเขียวว่าตั้งไว้แล้ว แล้วพนักงาน
+#   ไปเจอ 401 วนซ้ำทุก 30 วินาทีในหน้าต่างตัวรับงานที่ย่อไว้ ซึ่งไม่มีใครเปิดดู
+if ($haveCfg) {
+    switch (Test-WebToken $c.url $c.token) {
+        "OK"  { Good "โทเคนยังใช้ได้" }
+        "BAD" {
+            Bad "โทเคนใช้ไม่ได้แล้ว (เว็บตอบว่าไม่รู้จัก) - ตัวรับงานจะขึ้น 401 วนไปเรื่อย ๆ"
+            $haveCfg  = $false        # ตกไปเข้าทางถามค่าใหม่ข้างล่าง
+            $tokenBad = $true
+        }
+        default { Say "  ตรวจโทเคนตอนนี้ไม่ได้ (เน็ตหรือเว็บไม่ตอบ) - ข้ามไปก่อน" }
+    }
+}
+
 if (-not $haveCfg) {
-    Miss "ยังไม่ได้ตั้ง - เว็บจะขึ้นว่า 'ยังไม่ได้เชื่อมเครื่อง' ตลอด"
-    Say  "  ต้องมีโทเคนส่วนตัวก่อน: เปิดเว็บ > เมนูชื่อคุณ > โทเคน (/me/tokens) > ออกใบใหม่"
-    Say  "  โทเคนเป็นของคุณคนเดียว อย่าเอาไปแชร์ - เพิกถอนทีหลังได้"
+    if ($tokenBad) {
+        Say "  ออกใบใหม่ที่: เปิดเว็บ > เมนูชื่อคุณ > โทเคน (/me/tokens) > ออกใบใหม่"
+        Say "  ใบเก่าที่ใช้ไม่ได้แล้วจะถูกเขียนทับให้ ไม่ต้องไปลบเอง"
+    } else {
+        Miss "ยังไม่ได้ตั้ง - เว็บจะขึ้นว่า 'ยังไม่ได้เชื่อมเครื่อง' ตลอด"
+        Say  "  ต้องมีโทเคนส่วนตัวก่อน: เปิดเว็บ > เมนูชื่อคุณ > โทเคน (/me/tokens) > ออกใบใหม่"
+        Say  "  โทเคนเป็นของคุณคนเดียว อย่าเอาไปแชร์ - เพิกถอนทีหลังได้"
+    }
     if (Ask "  ตั้งค่าเลยไหม (ต้องมีโทเคนอยู่ในมือแล้ว)") {
-        $defUrl = "https://eduone.ovecaicenter.com"
+        $defUrl = if ($c -and $c.url) { $c.url } else { "https://eduone.ovecaicenter.com" }
         $url = Read-Host "  ที่อยู่เว็บ [กด Enter = $defUrl]"
         if ($url -eq "") { $url = $defUrl }
         $token = Read-Host "  วางโทเคนที่คัดลอกมา"
@@ -298,6 +343,12 @@ if (-not $haveCfg) {
                 $probe = & $py -c "import sys; sys.path.insert(0, r'$plug\skills\shared\scripts'); import eduone_web as w; c=w.config(); print('OK' if c else 'NOCFG')" 2>&1
                 if ("$probe" -match "OK") { Good "อ่านค่าตั้งค่ากลับมาได้" }
                 else { Bad "อ่านค่าตั้งค่าไม่ผ่าน: $probe"; $script:todo += "เชื่อมกับเว็บ" }
+            }
+            switch (Test-WebToken $url $token.Trim()) {
+                "OK"  { Good "โทเคนใช้ได้ - เว็บรับรู้เครื่องนี้แล้ว" }
+                "BAD" { Bad "เว็บไม่รู้จักโทเคนใบนี้ - คัดลอกมาไม่ครบ หรือออกมาจากเว็บคนละที่?"
+                        $script:todo += "เชื่อมกับเว็บ" }
+                default { Say "  ยังตรวจกับเว็บไม่ได้ตอนนี้ - ดูอีกทีด้วย eduone-py doctor.py" }
             }
         }
     } else {
@@ -357,7 +408,14 @@ Say "  ตั้งให้เริ่มเองทุกครั้งท�
 
 $eduDir  = Join-Path $env:USERPROFILE ".eduone"
 $startPs = Join-Path $eduDir "runner-start.ps1"
-$lnkPath = Join-Path ([Environment]::GetFolderPath("Startup")) "EDU ONE - ตัวรับงาน.lnk"
+# ★ ชื่อไฟล์ทางลัดต้องเป็น ASCII ล้วน - WScript.Shell แปลง path เป็น ANSI ของเครื่อง
+#   ก่อนบันทึก เครื่องที่ Windows ไม่ได้ตั้งเป็นภาษาไทย (ACP 1252) จึงได้ชื่อ
+#   "EDU ONE - ?????????.lnk" ซึ่ง ? เป็นอักขระต้องห้ามในชื่อไฟล์ของ Windows
+#   Save() โยน FileNotFoundException แล้วตัวช่วยติดตั้งตายคาที่ (ErrorActionPreference = Stop)
+#   ทั้งที่เหลืออีกขั้นเดียวจะจบ - เกิดจริงบนเครื่องพนักงานที่ Windows เป็นภาษาอังกฤษ
+$startupDir = [Environment]::GetFolderPath("Startup")
+$lnkPath    = Join-Path $startupDir "EDU ONE Runner.lnk"
+$lnkOld     = Join-Path $startupDir "EDU ONE - ตัวรับงาน.lnk"   # ชื่อเดิม (เครื่องภาษาไทยสร้างได้)
 
 # ★ ตัวเปิดเป็นไฟล์ .ps1 แยกต่างหาก ไม่ยัดคำสั่งทั้งชุดลงในทางลัด - ช่อง Arguments
 #   ของทางลัดจำกัดความยาว และ escape เครื่องหมายคำพูดซ้อนกันได้ยากมาก
@@ -400,7 +458,8 @@ if (Test-Path $cfgFile) {
 }
 if (-not $cfgOk) { Miss "ยังไม่ได้เชื่อมกับเว็บ (ข้อ 7) - ตัวรับงานจะเปิดค้างรอจนกว่าจะตั้งค่าให้ครบ" }
 
-if (Test-Path $lnkPath) { Good "ตั้งให้เริ่มเองตอนเปิดเครื่องไว้แล้ว: $lnkPath" }
+if (Test-Path $lnkPath)    { Good "ตั้งให้เริ่มเองตอนเปิดเครื่องไว้แล้ว: $lnkPath" }
+elseif (Test-Path $lnkOld) { Good "ตั้งให้เริ่มเองตอนเปิดเครื่องไว้แล้ว (ชื่อเดิม): $lnkOld" }
 else { Miss "ยังไม่ได้ตั้ง - เว็บจะขึ้นว่า 'รอเครื่องของคุณออนไลน์' ตลอดไป" }
 
 # ★ ด่านนี้สำคัญกว่าที่เห็น - ข้อ 4 เป็นคำถาม Y/N ถ้าพนักงานตอบ N ปลั๊กอินจะยังเป็น
@@ -418,15 +477,29 @@ if (-not $haveRunner) {
     [System.IO.File]::WriteAllText($startPs, $runnerPs, (New-Object System.Text.UTF8Encoding $true))
     Good "เขียนตัวเปิดแล้ว: $startPs"
 
-    $sh  = New-Object -ComObject WScript.Shell
-    $lnk = $sh.CreateShortcut($lnkPath)
-    $lnk.TargetPath       = "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe"
-    $lnk.Arguments        = "-NoLogo -NoProfile -ExecutionPolicy Bypass -File `"$startPs`""
-    $lnk.WorkingDirectory = $w
-    $lnk.WindowStyle      = 7          # 7 = ย่อลงแถบงาน ไม่เด้งบังจอตอนเปิดเครื่อง
-    $lnk.Description      = "EDU ONE - รับงานจากเว็บมาทำบนเครื่องนี้"
-    $lnk.Save()
-    Good "เริ่มเองตอนเปิดเครื่องแล้ว: $lnkPath"
+    # ★ ทางลัดพังต้องไม่ลากตัวช่วยติดตั้งตายไปด้วย - ErrorActionPreference = Stop แปลว่า
+    #   exception จาก COM ตัดจบสคริปต์ทั้งตัว ทั้งที่ยังเปิดตัวรับงานให้ตรง ๆ ได้อยู่
+    try {
+        $sh  = New-Object -ComObject WScript.Shell
+        $lnk = $sh.CreateShortcut($lnkPath)
+        $lnk.TargetPath       = "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe"
+        $lnk.Arguments        = "-NoLogo -NoProfile -ExecutionPolicy Bypass -File `"$startPs`""
+        $lnk.WorkingDirectory = $w
+        $lnk.WindowStyle      = 7          # 7 = ย่อลงแถบงาน ไม่เด้งบังจอตอนเปิดเครื่อง
+        $lnk.Description      = "EDU ONE - รับงานจากเว็บมาทำบนเครื่องนี้"
+        $lnk.Save()
+        Good "เริ่มเองตอนเปิดเครื่องแล้ว: $lnkPath"
+        # ทางลัดชื่อเดิมที่ยังเหลืออยู่ = เปิดตัวรับงานซ้ำสองตอนบูต ตัวหลังจะฟ้องว่าล็อกไม่ว่าง
+        if (Test-Path $lnkOld) {
+            Remove-Item $lnkOld -Force -ErrorAction SilentlyContinue
+            Say "  ลบทางลัดชื่อเดิมทิ้งแล้ว (กันเปิดซ้ำสองตอนบูต)"
+        }
+    } catch {
+        Bad "สร้างทางลัดใน Startup ไม่สำเร็จ: $($_.Exception.Message)"
+        Say "  ไม่ถึงกับใช้ไม่ได้ - เปิดตัวรับงานเองได้ด้วย:"
+        Say "    powershell -ExecutionPolicy Bypass -File `"$startPs`""
+        $script:todo += "ตั้งให้ตัวรับงานเริ่มเองตอนเปิดเครื่อง"
+    }
 
     # เปิดให้เลยตอนนี้ ไม่ต้องรอ restart - แต่ห้ามเปิดซ้ำถ้ามีตัวเดิมถือล็อกอยู่
     if (Test-RunnerRunning) {
