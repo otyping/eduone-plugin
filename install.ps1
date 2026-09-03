@@ -22,6 +22,17 @@ function Ask($q) {
     }
 }
 
+function Test-RunnerRunning {
+    # ตัวรับงานจองพอร์ต 47615 ไว้เป็นล็อกกันเปิดซ้ำ (ดู take_lock ใน runner.py)
+    # ต่อติด = มีตัวเปิดอยู่แล้ว - ใช้พอร์ตแทนไฟล์ล็อกเพราะระบบคืนพอร์ตให้เองเมื่อโปรเซสตาย
+    try {
+        $c = New-Object System.Net.Sockets.TcpClient
+        $ok = $c.ConnectAsync("127.0.0.1", 47615).Wait(500)
+        $c.Close()
+        return $ok
+    } catch { return $false }
+}
+
 function Find-Python312 {
     # หา Python 3.12 จาก py launcher ก่อน แล้วค่อยหาจาก PATH
     $cands = @()
@@ -339,6 +350,92 @@ if (Test-Path $settingsFile) {
         Good "เขียนแล้ว: $settingsFile"
     }
 }
+# ---------------------------------------------------- ตัวรับงาน (หัวใจของการสั่งจากเว็บ)
+Head "ตัวรับงาน - ให้เครื่องนี้รับงานจากเว็บไปทำเอง"
+Say "  เปิดค้างไว้เฉย ๆ แล้วกดสั่งงานบนเว็บได้เลย ไม่ต้องเปิดเทอร์มินัลพิมพ์คำสั่งเองอีก"
+Say "  ตั้งให้เริ่มเองทุกครั้งที่เปิดเครื่อง หน้าต่างจะย่อรอไว้ที่แถบงาน"
+
+$eduDir  = Join-Path $env:USERPROFILE ".eduone"
+$startPs = Join-Path $eduDir "runner-start.ps1"
+$lnkPath = Join-Path ([Environment]::GetFolderPath("Startup")) "EDU ONE - ตัวรับงาน.lnk"
+
+# ★ ตัวเปิดเป็นไฟล์ .ps1 แยกต่างหาก ไม่ยัดคำสั่งทั้งชุดลงในทางลัด - ช่อง Arguments
+#   ของทางลัดจำกัดความยาว และ escape เครื่องหมายคำพูดซ้อนกันได้ยากมาก
+# ★ ไม่ฝังเลขเวอร์ชันปลั๊กอิน หาใหม่ทุกครั้งที่เปิด ด้วยเหตุผลเดียวกับฟังก์ชัน eduone-py
+# ★ เขียนเป็น UTF-8 *พร้อม BOM* - PowerShell 5.1 อ่าน .ps1 ที่ไม่มี BOM เป็น ANSI
+#   บรรทัดไทยจะเพี้ยนทั้งไฟล์ (คนละกรณีกับ profile ในข้อ 6 ที่ต้องเป็น ASCII ล้วน
+#   เพราะไปต่อท้ายไฟล์ของเดิมที่เราไม่รู้ encoding - ไฟล์นี้เราสร้างเองทั้งไฟล์)
+$tpl = @'
+# EDU ONE - ตัวเปิดตัวรับงาน (ตัวช่วยติดตั้งสร้างให้ แก้ path ได้ถ้าย้ายโฟลเดอร์งาน)
+[Console]::OutputEncoding = [Text.Encoding]::UTF8
+$root = "$env:USERPROFILE\.claude\plugins\cache\eduone\edu-one"
+$work = '__WORK__'
+while ($true) {
+    $bin = (Get-ChildItem "$root\*\bin" -Directory -ErrorAction SilentlyContinue |
+            Sort-Object { $_.Parent.Name -as [version] } | Select-Object -Last 1).FullName
+    if (-not $bin) {
+        Write-Host "ไม่พบปลั๊กอิน edu-one - รันตัวช่วยติดตั้งอีกครั้ง แล้วค่อยเปิดใหม่"
+        Start-Sleep 300; continue
+    }
+    Set-Location $work
+    $env:PYTHONIOENCODING = "utf-8"
+    & "$bin\eduone-py.cmd" runner.py
+    # exit 1 = มีตัวรับงานตัวอื่นถือล็อกอยู่แล้ว เปิดซ้ำไปก็ได้ผลเดิม จึงเลิก ไม่วนต่อ
+    if ($LASTEXITCODE -eq 1) {
+        Write-Host "มีตัวรับงานเปิดอยู่แล้วบนเครื่องนี้ - ปิดหน้าต่างนี้ได้เลย"
+        Start-Sleep 20; break
+    }
+    Write-Host "ตัวรับงานหยุดไป - จะเปิดใหม่ให้ใน 30 วินาที (กด Ctrl+C ถ้าไม่ต้องการ)"
+    Start-Sleep 30
+}
+'@
+# ใช้ .Replace ของ .NET ไม่ใช่ -replace : -replace เป็น regex ส่วน path ของ Windows
+# มีตัวคั่นเป็นแบ็กสแลชเต็มไปหมด จะกลายเป็น escape sequence ทันที
+$runnerPs = $tpl.Replace("__WORK__", $w.Replace("'", "''"))
+
+$cfgOk = $false
+if (Test-Path $cfgFile) {
+    try { $c = Get-Content -Raw $cfgFile | ConvertFrom-Json
+          if ($c.url -and $c.token) { $cfgOk = $true } } catch { }
+}
+if (-not $cfgOk) { Miss "ยังไม่ได้เชื่อมกับเว็บ (ข้อ 7) - ตัวรับงานจะเปิดค้างรอจนกว่าจะตั้งค่าให้ครบ" }
+
+if (Test-Path $lnkPath) { Good "ตั้งให้เริ่มเองตอนเปิดเครื่องไว้แล้ว: $lnkPath" }
+else { Miss "ยังไม่ได้ตั้ง - เว็บจะขึ้นว่า 'รอเครื่องของคุณออนไลน์' ตลอดไป" }
+
+if (Ask "  ตั้ง/อัปเดตให้ตัวรับงานเริ่มเองตอนเปิดเครื่องไหม") {
+    New-Item -ItemType Directory -Force $eduDir | Out-Null
+    [System.IO.File]::WriteAllText($startPs, $runnerPs, (New-Object System.Text.UTF8Encoding $true))
+    Good "เขียนตัวเปิดแล้ว: $startPs"
+
+    $sh  = New-Object -ComObject WScript.Shell
+    $lnk = $sh.CreateShortcut($lnkPath)
+    $lnk.TargetPath       = "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe"
+    $lnk.Arguments        = "-NoLogo -NoProfile -ExecutionPolicy Bypass -File `"$startPs`""
+    $lnk.WorkingDirectory = $w
+    $lnk.WindowStyle      = 7          # 7 = ย่อลงแถบงาน ไม่เด้งบังจอตอนเปิดเครื่อง
+    $lnk.Description      = "EDU ONE - รับงานจากเว็บมาทำบนเครื่องนี้"
+    $lnk.Save()
+    Good "เริ่มเองตอนเปิดเครื่องแล้ว: $lnkPath"
+
+    # เปิดให้เลยตอนนี้ ไม่ต้องรอ restart - แต่ห้ามเปิดซ้ำถ้ามีตัวเดิมถือล็อกอยู่
+    if (Test-RunnerRunning) {
+        Good "ตัวรับงานเปิดอยู่แล้ว ไม่เปิดซ้ำ"
+    } else {
+        Start-Process powershell -WindowStyle Minimized -ArgumentList @(
+            "-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $startPs)
+        Start-Sleep 4
+        if (Test-RunnerRunning) { Good "เปิดตัวรับงานให้แล้ว - ย่อรออยู่ที่แถบงาน" }
+        else {
+            Bad "เปิดแล้วแต่ยังไม่ตอบ - กดดูหน้าต่างที่ย่อไว้ว่าฟ้องอะไร"
+            $script:todo += "ตัวรับงาน"
+        }
+    }
+} else {
+    Say "  ข้ามได้ - เปิดเองทีหลังก็ได้ด้วย  eduone-py runner.py  (cd เข้าโฟลเดอร์งานก่อน)"
+    $script:todo += "ตัวรับงาน"
+}
+
 # ---------------------------------------------------------------- ตรวจผล
 Head "ตรวจผลรวม"
 $plug = Get-PluginDir
@@ -357,6 +454,12 @@ if ($script:todo.Count -gt 0) {
     Write-Host "ทำเสร็จแล้วเปิด PowerShell ใหม่ แล้วรันสคริปต์นี้ซ้ำได้เลย"
 } else {
     Write-Host "เรียบร้อย" -ForegroundColor Green
-    Write-Host "ขั้นต่อไป: cd `"$w`"  แล้วพิมพ์  claude  เพื่อเริ่มใช้งาน"
-    Write-Host "ครั้งแรกจะให้ล็อกอินผ่านเบราว์เซอร์ - ใช้บัญชีที่บริษัทเบิกให้"
+    Write-Host ""
+    # ★ ตัวรับงานเรียก claude ในโหมดไม่มีคนเฝ้า ซึ่งใช้การล็อกอินที่ทำไว้แล้วเท่านั้น
+    #   มันเปิดเบราว์เซอร์ให้ล็อกอินเองไม่ได้ - ข้อนี้จึงยังต้องทำด้วยมือหนึ่งครั้ง
+    Write-Host "เหลืออีกครั้งเดียว: cd `"$w`"  แล้วพิมพ์  claude  เพื่อล็อกอิน" -ForegroundColor Cyan
+    Write-Host "ใช้บัญชีที่บริษัทเบิกให้ - ล็อกอินแล้วพิมพ์ /exit ออกได้เลย ทำครั้งเดียวจบ"
+    Write-Host ""
+    Write-Host "จากนั้นสั่งงานจากเว็บได้เลย: https://eduone.ovecaicenter.com/jobs?tab=all"
+    Write-Host "ไม่ต้องเปิดเทอร์มินัลอีก - ตัวรับงานที่ย่อไว้ที่แถบงานจะรับไปทำให้เอง"
 }
