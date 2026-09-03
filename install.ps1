@@ -60,14 +60,25 @@ function Read-WebUrl($def) {
     }
 }
 
-function Read-ApiToken {
+function Read-ApiToken($keep) {
     # โทเคนของระบบนี้ขึ้นต้นด้วย eduone_ เสมอ (auth.API_TOKEN_PREFIX ฝั่งเว็บ)
     # ถ้าเจอในสิ่งที่วางมา ก็ตัดเอาเฉพาะโทเคน - ถ้าไม่เจอก็ปล่อยผ่านให้ Test-WebToken ตัดสิน
     # (เผื่อรูปแบบเปลี่ยนวันหลัง จะได้ไม่บล็อกโทเคนที่ใช้ได้จริง)
-    $raw = Read-Host "  วางโทเคนที่คัดลอกมา"
+    #
+    # ★ $keep = โทเคนเดิมที่ยังไม่มีอะไรบอกว่าใช้ไม่ได้ - ที่อยู่เว็บพิมพ์ผิดอย่างเดียว
+    #   ไม่ควรบังคับให้ไปออกใบใหม่ทั้งใบ เพราะเว็บโชว์โทเคนให้เห็นแค่ครั้งเดียวตอนออก
+    #   ใบเดิมที่ยังดีอยู่จะถูกทิ้งไปฟรี ๆ แล้วคลังโทเคนก็รกขึ้นทุกรอบที่ตั้งค่าพลาด
+    $hint = if ($keep) { " [กด Enter = ใช้โทเคนเดิม]" } else { "" }
+    $raw = Read-Host "  วางโทเคนที่คัดลอกมา$hint"
+    if ("$raw".Trim() -eq "" -and $keep) { return $keep }
     $t = "$raw".Trim().Trim('"').Trim("'").Trim()
-    $m = [regex]::Match($t, 'eduone_[A-Za-z0-9_\-]+')
-    if ($m.Success) { return $m.Value }
+    # ★ เอาตัวที่ "ยาวที่สุด" ไม่ใช่ตัวแรก - บรรทัด  setx eduone_token "eduone_<ของจริง>"
+    #   มี eduone_ สองที่ ตัวแรกคือ *ชื่อตัวแปร* ถ้าหยิบตัวแรกจะได้ "eduone_token" มาเป็น
+    #   โทเคน ซึ่งผิดแบบเงียบ ๆ · โทเคนจริงคือ eduone_ + 43 ตัว จึงยาวกว่าชื่อตัวแปรเสมอ
+    #   และเกณฑ์ 20 ตัวกันไม่ให้คำอย่าง eduone_url หลุดมาเป็นโทเคน
+    $best = [regex]::Matches($t, 'eduone_[A-Za-z0-9_\-]+') |
+            Sort-Object { $_.Value.Length } | Select-Object -Last 1
+    if ($best -and $best.Value.Length -ge 20) { return $best.Value }
     return $t
 }
 
@@ -377,7 +388,8 @@ if (-not $haveCfg) {
     if (Ask "  ตั้งค่าเลยไหม (ต้องมีโทเคนอยู่ในมือแล้ว)") {
         $defUrl = if ($c -and $c.url -match '^https?://\S+$') { $c.url } else { "https://eduone.ovecaicenter.com" }
         $url = Read-WebUrl $defUrl
-        $token = Read-ApiToken
+        # โทเคนเดิมเก็บไว้ได้เฉพาะตอนที่ยังไม่มีอะไรบอกว่ามันตาย ($tokenBad มาจาก Test-WebToken)
+        $token = Read-ApiToken $(if ($c -and $c.token -and -not $tokenBad) { $c.token } else { "" })
         if ($token -eq "") {
             Bad "ไม่ได้ใส่โทเคน - ข้ามไปก่อน"
             $script:todo += "เชื่อมกับเว็บ"
