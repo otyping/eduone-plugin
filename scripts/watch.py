@@ -239,12 +239,29 @@ def render(st: dict, meta: dict, started: float) -> str:
     return "\n".join(out)
 
 
+def push(topic) -> None:
+    """ส่งสถานะเดียวกันนี้ขึ้นเว็บด้วย — เงียบ และห้ามล้มเด็ดขาด
+
+    หน้าจอเฝ้าดูต้องไม่ดับเพราะเน็ตมีปัญหาหรือเว็บล่ม · report.py เว้นช่วงเองอยู่แล้ว
+    (30 วินาที) จึงเรียกทุกรอบได้โดยไม่กลายเป็นการยิงถี่
+    """
+    if topic is None:
+        return
+    try:
+        import report
+        report.run(topic, verbose=False, do_upload=True, force=False)
+    except Exception:
+        pass
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="ติดตามงานที่กำลังทำบนเครื่องนี้")
     ap.add_argument("grade")
     ap.add_argument("subject")
     ap.add_argument("no", type=int)
     ap.add_argument("--json", action="store_true", help="พิมพ์สถานะครั้งเดียวเป็น JSON")
+    ap.add_argument("--no-push", action="store_true",
+                    help="ไม่ต้องส่งสถานะขึ้นเว็บ (ปกติส่งให้เองถ้าตั้งค่าเว็บไว้แล้ว)")
     a = ap.parse_args()
 
     meta = ntt.no_to_token(a.grade, a.subject, a.no)
@@ -254,6 +271,14 @@ def main() -> int:
         print(json.dumps(scan(meta, pp), ensure_ascii=False, indent=2))
         return 0
 
+    topic = None
+    if not a.no_push:
+        try:
+            import report
+            topic = report.topic_dir_of(a.grade, a.subject, a.no)
+        except Exception:
+            topic = None
+
     started = time.time()
     try:
         while True:
@@ -261,6 +286,7 @@ def main() -> int:
             # เขียนทั้งเฟรมทีเดียว ไม่ล้างจอก่อน — ล้างแล้วเขียนทำให้จอกะพริบ
             sys.stdout.write(("\033[H\033[J" if COLOR else "\n" * 3) + frame + "\n")
             sys.stdout.flush()
+            push(topic)
             time.sleep(POLL_SEC)
     except KeyboardInterrupt:
         print("\n  หยุดเฝ้าดูแล้ว — งานที่รันอยู่ไม่ได้ถูกหยุดไปด้วย\n")

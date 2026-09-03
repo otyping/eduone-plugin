@@ -169,6 +169,36 @@ need(own_ok,
      f"หน้าต่างเทอร์มินัลที่คุณเปิดเองยังไม่รู้จัก eduone-py (ใน Claude Code ใช้ได้อยู่แล้ว) · {fix_own}",
      fatal=False)
 
+# ---------------------------------------------------------------- เชื่อมกับเว็บ
+head("การเชื่อมกับเว็บ EDU ONE")
+# ไม่ตั้งก็ผลิตสื่อได้ตามปกติ — แค่เว็บไม่รู้ว่างานเดินถึงไหน จึงเป็น WARN ไม่ใช่ FAIL
+try:
+    sys.path.insert(0, str(SHARED / "scripts"))
+    import eduone_web as _web
+    _cfg = _web.config()
+except Exception as exc:                                  # noqa: BLE001
+    _cfg, _web = None, None
+    print(WARN + f"อ่านตัวเชื่อมเว็บไม่ได้: {exc}")
+
+if _web is not None:
+    if need(bool(_cfg),
+            f"ตั้งค่าไว้แล้ว: {_cfg['url']}" if _cfg else "",
+            "ยังไม่ได้ตั้งค่า — เว็บจะขึ้นว่า 'ยังไม่ได้เชื่อมเครื่อง' ตลอด และไฟล์ไม่ถูกส่งขึ้นใบสั่ง "
+            f"· ตั้งด้วยตัวช่วยติดตั้ง (ข้อ 7/7) หรือเขียน {_web.CONFIG_FILE} เอง",
+            fatal=False):
+        try:
+            _me = _web.get(_cfg, "/api/jobs/find", {"base": "__probe__"})
+            print(OK + "เว็บตอบกลับแล้ว")
+        except Exception as exc:                          # noqa: BLE001
+            # 404 = โทเคนใช้ได้ แค่ไม่มีใบสั่งชื่อนี้ ซึ่งเป็นคำตอบที่ถูกต้องของการทดสอบ
+            msg = str(exc)
+            if "HTTP 404" in msg:
+                print(OK + "โทเคนใช้ได้ (เว็บตอบว่าไม่มีใบสั่งทดสอบชื่อนี้ ซึ่งถูกแล้ว)")
+            elif "HTTP 401" in msg or "HTTP 403" in msg:
+                print(BAD + "โทเคนใช้ไม่ได้แล้ว — ออกใบใหม่ที่หน้า /me/tokens ของเว็บ")
+            else:
+                print(WARN + f"ต่อเว็บไม่ได้ตอนนี้: {msg}")
+
 # ---------------------------------------------------------------- ที่ทำงาน
 head("โฟลเดอร์งาน")
 sys.path.insert(0, str(SHARED / "scripts"))

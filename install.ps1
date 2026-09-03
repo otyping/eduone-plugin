@@ -57,7 +57,7 @@ Write-Host "  EDU ONE - ติดตั้งเครื่องมือผ�
 Write-Host "  จะถามก่อนทุกขั้น ไม่ติดตั้งอะไรเองโดยไม่ได้รับคำตอบ"
 
 # ---------------------------------------------------------------- 1 Claude Code
-Head "1/6  Claude Code"
+Head "1/7  Claude Code"
 $claude = Get-Command claude -ErrorAction SilentlyContinue
 if ($claude) {
     Good "$((& claude --version) -join ' ')"
@@ -74,7 +74,7 @@ if ($claude) {
 }
 
 # ---------------------------------------------------------------- 2 Git for Windows
-Head "2/6  Git for Windows"
+Head "2/7  Git for Windows"
 if (Get-Command git -ErrorAction SilentlyContinue) {
     Good ((& git --version) -join ' ')
 } else {
@@ -87,7 +87,7 @@ if (Get-Command git -ErrorAction SilentlyContinue) {
 }
 
 # ---------------------------------------------------------------- 3 Python 3.12
-Head "3/6  Python 3.12"
+Head "3/7  Python 3.12"
 $py = Find-Python312
 if ($py) {
     Good "$py"
@@ -110,7 +110,7 @@ if ($py) {
 }
 
 # ---------------------------------------------------------------- 4 ปลั๊กอิน
-Head "4/6  ปลั๊กอิน edu-one"
+Head "4/7  ปลั๊กอิน edu-one"
 if (-not $claude) {
     Miss "ข้ามไปก่อน เพราะยังไม่มี Claude Code"
     $script:todo += "ปลั๊กอิน edu-one"
@@ -136,7 +136,7 @@ if (-not $claude) {
 }
 
 # ---------------------------------------------------------------- 5 แพ็กเกจ Python
-Head "5/6  แพ็กเกจ Python"
+Head "5/7  แพ็กเกจ Python"
 $plug = Get-PluginDir
 if (-not $py) {
     Miss "ข้ามไปก่อน เพราะยังไม่มี Python 3.12"
@@ -156,7 +156,7 @@ if (-not $py) {
 }
 
 # ------------------------------------------- 6 คำสั่ง eduone-py ในเทอร์มินัลของพนักงาน
-Head "6/6  คำสั่ง eduone-py ในเทอร์มินัลของคุณ"
+Head "6/7  คำสั่ง eduone-py ในเทอร์มินัลของคุณ"
 Say "  Claude Code รู้จักคำสั่งนี้เองอยู่แล้ว แต่หน้าต่างเทอร์มินัลที่คุณเปิดเองยังไม่รู้จัก"
 Say "  ซึ่งเป็นหน้าต่างที่ใช้รัน  eduone-py watch.py  ตามที่เว็บบอกระหว่างรองาน"
 
@@ -247,6 +247,50 @@ if ($hasFn) {
     } else {
         Miss "หน้าต่างนี้ยังพิมพ์ eduone-py ไม่ได้ - profile ถูกอ่านตอนเปิดหน้าต่างเท่านั้น"
         Say  "  >>> ปิดหน้าต่างนี้ แล้วเปิด PowerShell ใหม่หนึ่งครั้ง จึงจะใช้คำสั่งได้ <<<"
+    }
+}
+
+# --------------------------------------------- 7 เชื่อมกับเว็บ (รายงานสถานะอัตโนมัติ)
+Head "7/7  เชื่อมกับเว็บ EDU ONE"
+Say "  ตั้งค่านี้แล้ว เครื่องจะรายงานเองว่างานเดินถึงไหน และส่งไฟล์ต้นฉบับขึ้นใบสั่งให้"
+Say "  ทีมจึงเห็นสถานะบนเว็บโดยไม่ต้องถามกันทีละคน · ไม่ตั้งก็ทำงานได้ปกติ แค่เว็บไม่รู้เรื่อง"
+
+$cfgFile = Join-Path $env:USERPROFILE ".eduone\config.json"
+$haveCfg = $false
+if (Test-Path $cfgFile) {
+    try {
+        $c = Get-Content -Raw $cfgFile | ConvertFrom-Json
+        if ($c.url -and $c.token) { $haveCfg = $true; Good "ตั้งไว้แล้ว: $($c.url)  ($cfgFile)" }
+    } catch { }
+}
+if (-not $haveCfg) {
+    Miss "ยังไม่ได้ตั้ง - เว็บจะขึ้นว่า 'ยังไม่ได้เชื่อมเครื่อง' ตลอด"
+    Say  "  ต้องมีโทเคนส่วนตัวก่อน: เปิดเว็บ > เมนูชื่อคุณ > โทเคน (/me/tokens) > ออกใบใหม่"
+    Say  "  โทเคนเป็นของคุณคนเดียว อย่าเอาไปแชร์ - เพิกถอนทีหลังได้"
+    if (Ask "  ตั้งค่าเลยไหม (ต้องมีโทเคนอยู่ในมือแล้ว)") {
+        $defUrl = "https://eduone.ovecaicenter.com"
+        $url = Read-Host "  ที่อยู่เว็บ [กด Enter = $defUrl]"
+        if ($url -eq "") { $url = $defUrl }
+        $token = Read-Host "  วางโทเคนที่คัดลอกมา"
+        if ($token.Trim() -eq "") {
+            Bad "ไม่ได้ใส่โทเคน - ข้ามไปก่อน"
+            $script:todo += "เชื่อมกับเว็บ"
+        } else {
+            New-Item -ItemType Directory -Force (Split-Path $cfgFile) | Out-Null
+            $json = @{ url = $url.TrimEnd("/"); token = $token.Trim() } | ConvertTo-Json
+            [System.IO.File]::WriteAllText($cfgFile, $json, (New-Object System.Text.UTF8Encoding $false))
+            Good "เขียนแล้ว: $cfgFile"
+
+            # ลองยิงจริงทันที - บอกตอนนี้ดีกว่าให้ไปเจอตอนงานเดินแล้วเงียบหาย
+            if ($py -and $plug) {
+                $env:PYTHONIOENCODING = "utf-8"
+                $probe = & $py -c "import sys; sys.path.insert(0, r'$plug\skills\shared\scripts'); import eduone_web as w; c=w.config(); print('OK' if c else 'NOCFG')" 2>&1
+                if ("$probe" -match "OK") { Good "อ่านค่าตั้งค่ากลับมาได้" }
+                else { Bad "อ่านค่าตั้งค่าไม่ผ่าน: $probe"; $script:todo += "เชื่อมกับเว็บ" }
+            }
+        }
+    } else {
+        $script:todo += "เชื่อมกับเว็บ"
     }
 }
 

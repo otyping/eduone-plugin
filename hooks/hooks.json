@@ -1,0 +1,16 @@
+{
+  "description": "รายงานความคืบหน้าของคาบที่กำลังทำขึ้นเว็บ EDU ONE โดยอัตโนมัติ — ยิงหลังทุกครั้งที่ agent เขียนไฟล์หรือรันคำสั่ง แล้ว report.py เว้นช่วงเองไม่ให้ถี่เกิน 30 วินาที · เงียบเสมอ ไม่คืนคำตัดสินสิทธิ์ใด ๆ และล้มเหลวโดยไม่กระทบงานหลัก",
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}/bin/eduone-py\" report.py --auto"
+          }
+        ]
+      }
+    ]
+  }
+}
