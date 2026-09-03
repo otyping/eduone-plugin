@@ -27,23 +27,48 @@ from pathlib import Path
 CONFIG_FILE = Path.home() / ".eduone" / "config.json"
 TIMEOUT = 20
 
+#: เหตุผลล่าสุดที่ config() คืน None — ตัวเรียกเอาไปบอกผู้ใช้ได้ว่า "ยังไม่ตั้ง" หรือ "ตั้งผิด"
+#: ซึ่งเป็นคนละปัญหาที่ต้องแก้คนละทาง แต่ของเดิมคืน None เหมือนกันหมด
+last_problem = ""
+
 
 class WebError(RuntimeError):
     """เรียกเว็บไม่สำเร็จ — ตัวเรียกตัดสินเองว่าจะเงียบหรือจะบ่น"""
 
 
+def _clean(s: str) -> str:
+    """ตัดช่องว่างและเครื่องหมายคำพูดที่ติดมากับการคัดลอก"""
+    return str(s).strip().strip('"').strip("'").strip()
+
+
 def config() -> dict | None:
-    """{'url': ..., 'token': ...} — คืน None ถ้ายังไม่ได้ตั้งค่า"""
+    """{'url': ..., 'token': ...} — คืน None ถ้ายังไม่ได้ตั้งค่า หรือตั้งไว้ผิดรูปแบบ
+
+    ★ ตั้งผิดต้องไม่เงียบ — ที่อยู่เว็บที่ไม่ใช่ URL (เช่นวางทั้งบรรทัด
+      `setx eduone_url "https://..."` ลงไป) เดิมหลุดไปถึง urllib แล้วโผล่เป็น
+      "unknown url type: setx eduone_url ..." ในบันทึกของตัวรับงาน ซึ่งพนักงาน
+      อ่านไม่ออกว่าต้องกลับมาแก้ที่ไฟล์ตั้งค่า
+    """
+    global last_problem
+    last_problem = ""
     url = os.environ.get("EDUONE_WEB_URL", "").strip()
     token = os.environ.get("EDUONE_WEB_TOKEN", "").strip()
+    from_env = bool(url)          # url มาจาก env หรือจากไฟล์ - คนละที่ต้องบอกให้ไปแก้คนละที่
     if not (url and token) and CONFIG_FILE.is_file():
         try:
             data = json.loads(CONFIG_FILE.read_text(encoding="utf-8"))
             url = url or str(data.get("url", "")).strip()
             token = token or str(data.get("token", "")).strip()
-        except (ValueError, OSError):
+        except (ValueError, OSError) as exc:
+            last_problem = f"อ่านไฟล์ตั้งค่าไม่ได้: {CONFIG_FILE} ({exc})"
             return None
     if not (url and token):
+        return None
+    url, token = _clean(url), _clean(token)
+    if not url.lower().startswith(("http://", "https://")):
+        where = "ตัวแปรสภาพแวดล้อม EDUONE_WEB_URL" if from_env else f"ไฟล์ {CONFIG_FILE}"
+        last_problem = (f"ที่อยู่เว็บที่ตั้งไว้ไม่ใช่ URL: {url!r} — ต้องขึ้นต้นด้วย https:// "
+                        f"· แก้ที่ {where} หรือรันตัวช่วยติดตั้งอีกครั้ง (ข้อ 7/7)")
         return None
     return {"url": url.rstrip("/"), "token": token}
 

@@ -44,6 +44,33 @@ function Test-WebToken($url, $token) {
     }
 }
 
+function Read-WebUrl($def) {
+    # ★ ช่องนี้พนักงานวาง "ทั้งบรรทัดคำสั่ง" ลงมาได้ง่ายมาก - เกิดจริงบนเครื่องแรกที่ติดตั้ง
+    #   เขาวาง  setx eduone_url "https://..."  ลงไปทั้งบรรทัด ไฟล์ตั้งค่าจึงเก็บทั้งบรรทัดนั้น
+    #   แล้วตัวรับงานไปตายที่ urlopen ด้วย "unknown url type: setx eduone_url ..." ซึ่งไม่มีทาง
+    #   เดาออกว่าต้องกลับมาแก้ตรงไหน - ดึงเฉพาะ URL ออกมาให้ แล้วตรวจรูปแบบก่อนบันทึกเสมอ
+    while ($true) {
+        $raw = Read-Host "  ที่อยู่เว็บ [กด Enter = $def]"
+        if ("$raw".Trim() -eq "") { return $def }
+        $t = "$raw".Trim().Trim('"').Trim("'").Trim()
+        $m = [regex]::Match($t, 'https?://[^\s"'']+')
+        if ($m.Success) { return $m.Value.TrimEnd('/') }
+        Bad "ที่อยู่เว็บต้องขึ้นต้นด้วย https:// - ที่ใส่มาคือ: $t"
+        Say "  วางเฉพาะที่อยู่เว็บ ไม่ต้องวางทั้งบรรทัดคำสั่ง · ตัวอย่าง: $def"
+    }
+}
+
+function Read-ApiToken {
+    # โทเคนของระบบนี้ขึ้นต้นด้วย eduone_ เสมอ (auth.API_TOKEN_PREFIX ฝั่งเว็บ)
+    # ถ้าเจอในสิ่งที่วางมา ก็ตัดเอาเฉพาะโทเคน - ถ้าไม่เจอก็ปล่อยผ่านให้ Test-WebToken ตัดสิน
+    # (เผื่อรูปแบบเปลี่ยนวันหลัง จะได้ไม่บล็อกโทเคนที่ใช้ได้จริง)
+    $raw = Read-Host "  วางโทเคนที่คัดลอกมา"
+    $t = "$raw".Trim().Trim('"').Trim("'").Trim()
+    $m = [regex]::Match($t, 'eduone_[A-Za-z0-9_\-]+')
+    if ($m.Success) { return $m.Value }
+    return $t
+}
+
 function Test-RunnerRunning {
     # ตัวรับงานจองพอร์ต 47615 ไว้เป็นล็อกกันเปิดซ้ำ (ดู take_lock ใน runner.py)
     # ต่อติด = มีตัวเปิดอยู่แล้ว - ใช้พอร์ตแทนไฟล์ล็อกเพราะระบบคืนพอร์ตให้เองเมื่อโปรเซสตาย
@@ -295,8 +322,32 @@ $c = $null
 if (Test-Path $cfgFile) {
     try {
         $c = Get-Content -Raw $cfgFile | ConvertFrom-Json
-        if ($c.url -and $c.token) { $haveCfg = $true; Good "ตั้งไว้แล้ว: $($c.url)  ($cfgFile)" }
+        if ($c.url -and $c.token) {
+            if ($c.url -match '^https?://\S+$') {
+                $haveCfg = $true; Good "ตั้งไว้แล้ว: $($c.url)  ($cfgFile)"
+            } else {
+                # ไฟล์มีครบสองช่องแต่ช่อง url ไม่ใช่ URL - ของเดิมปล่อยผ่านแล้วไปพังที่ตัวรับงาน
+                Bad "ที่อยู่เว็บในไฟล์ตั้งค่าใช้ไม่ได้: $($c.url)"
+                Say "  (น่าจะวางทั้งบรรทัดคำสั่งลงไปตอนตั้งค่า) - ตั้งใหม่ให้ข้างล่างนี้"
+            }
+        }
     } catch { }
+}
+
+# ★ ตัวแปรสภาพแวดล้อมทับไฟล์ตั้งค่าเสมอ (ดู eduone_web.config) - ถ้ามีค่าผิดค้างไว้
+#   จะแก้ไฟล์ยังไงก็ไม่หาย และไม่มีอะไรบนหน้าจอบอกว่ามีตัวนี้อยู่
+foreach ($v in @("EDUONE_WEB_URL", "EDUONE_WEB_TOKEN")) {
+    $val = [Environment]::GetEnvironmentVariable($v, "User")
+    if ($val) {
+        Bad "มีตัวแปร $v ตั้งค้างไว้ในเครื่อง - ค่านี้ทับไฟล์ตั้งค่าเสมอ"
+        if (Ask "  ลบตัวแปร $v ทิ้งไหม (แนะนำให้ลบ แล้วใช้ไฟล์ตั้งค่าอย่างเดียว)") {
+            [Environment]::SetEnvironmentVariable($v, $null, "User")
+            Remove-Item "env:$v" -ErrorAction SilentlyContinue
+            Good "ลบแล้ว: $v"
+        } else {
+            $script:todo += "ลบตัวแปร $v"
+        }
+    }
 }
 
 # ★ ยิงจริงดูว่าโทเคนยังใช้ได้ไหม - "มีไฟล์" กับ "ใช้ได้" คนละเรื่องกัน
@@ -324,16 +375,15 @@ if (-not $haveCfg) {
         Say  "  โทเคนเป็นของคุณคนเดียว อย่าเอาไปแชร์ - เพิกถอนทีหลังได้"
     }
     if (Ask "  ตั้งค่าเลยไหม (ต้องมีโทเคนอยู่ในมือแล้ว)") {
-        $defUrl = if ($c -and $c.url) { $c.url } else { "https://eduone.ovecaicenter.com" }
-        $url = Read-Host "  ที่อยู่เว็บ [กด Enter = $defUrl]"
-        if ($url -eq "") { $url = $defUrl }
-        $token = Read-Host "  วางโทเคนที่คัดลอกมา"
-        if ($token.Trim() -eq "") {
+        $defUrl = if ($c -and $c.url -match '^https?://\S+$') { $c.url } else { "https://eduone.ovecaicenter.com" }
+        $url = Read-WebUrl $defUrl
+        $token = Read-ApiToken
+        if ($token -eq "") {
             Bad "ไม่ได้ใส่โทเคน - ข้ามไปก่อน"
             $script:todo += "เชื่อมกับเว็บ"
         } else {
             New-Item -ItemType Directory -Force (Split-Path $cfgFile) | Out-Null
-            $json = @{ url = $url.TrimEnd("/"); token = $token.Trim() } | ConvertTo-Json
+            $json = @{ url = $url.TrimEnd("/"); token = $token } | ConvertTo-Json
             [System.IO.File]::WriteAllText($cfgFile, $json, (New-Object System.Text.UTF8Encoding $false))
             Good "เขียนแล้ว: $cfgFile"
 
@@ -344,7 +394,7 @@ if (-not $haveCfg) {
                 if ("$probe" -match "OK") { Good "อ่านค่าตั้งค่ากลับมาได้" }
                 else { Bad "อ่านค่าตั้งค่าไม่ผ่าน: $probe"; $script:todo += "เชื่อมกับเว็บ" }
             }
-            switch (Test-WebToken $url $token.Trim()) {
+            switch (Test-WebToken $url $token) {
                 "OK"  { Good "โทเคนใช้ได้ - เว็บรับรู้เครื่องนี้แล้ว" }
                 "BAD" { Bad "เว็บไม่รู้จักโทเคนใบนี้ - คัดลอกมาไม่ครบ หรือออกมาจากเว็บคนละที่?"
                         $script:todo += "เชื่อมกับเว็บ" }

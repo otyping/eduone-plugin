@@ -478,7 +478,8 @@ def main() -> int:
     while True:
         cfg = web.config()
         if not cfg:
-            log_quiet("ยังไม่ได้ตั้งค่าที่อยู่เว็บกับโทเคน — รอไปก่อน (รันตัวช่วยติดตั้งข้อ 7)")
+            log_quiet(web.last_problem or
+                      "ยังไม่ได้ตั้งค่าที่อยู่เว็บกับโทเคน — รอไปก่อน (รันตัวช่วยติดตั้งข้อ 7)")
             time.sleep(60)
             continue
         wb = Web(cfg)
