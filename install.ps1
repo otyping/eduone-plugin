@@ -207,8 +207,6 @@ if ($need.Count -gt 0) {
             Add-Content -Path $f -Value $fn
             Good "เพิ่มแล้ว: $f"
         }
-        try { . $PROFILE.CurrentUserAllHosts } catch {}
-        Say "  หน้าต่างที่เปิดค้างอยู่ ต้องปิดแล้วเปิดใหม่ก่อนถึงจะรู้จักคำสั่งนี้"
     } else {
         $script:todo += "คำสั่ง eduone-py"
     }
@@ -235,6 +233,20 @@ if ($hasFn) {
         } else {
             $script:todo += "ExecutionPolicy"
         }
+    }
+}
+
+# ★ ถึงตรงนี้ไฟล์ถูกและ policy ผ่านแล้ว แต่ **หน้าต่างนี้ยังไม่รู้จักคำสั่ง** เพราะ
+#   PowerShell อ่าน profile ตอนเปิดหน้าต่างเท่านั้น — ตอนหน้าต่างนี้เปิดขึ้นมา
+#   ยังไม่มีฟังก์ชัน (หรือ policy ยังบล็อกอยู่) จึงต้องดอตซอร์สซ้ำเองที่นี่
+#   ไม่งั้นพนักงานจะพิมพ์คำสั่งในหน้าต่างเดิมแล้วเจอ "not recognized" ทั้งที่ทุกอย่างถูก
+if ($hasFn) {
+    try { . $PROFILE.CurrentUserAllHosts } catch {}
+    if (Get-Command eduone-py -ErrorAction SilentlyContinue) {
+        Good "หน้าต่างนี้พิมพ์ eduone-py ได้เลยแล้ว"
+    } else {
+        Miss "หน้าต่างนี้ยังพิมพ์ eduone-py ไม่ได้ - profile ถูกอ่านตอนเปิดหน้าต่างเท่านั้น"
+        Say  "  >>> ปิดหน้าต่างนี้ แล้วเปิด PowerShell ใหม่หนึ่งครั้ง จึงจะใช้คำสั่งได้ <<<"
     }
 }
 
