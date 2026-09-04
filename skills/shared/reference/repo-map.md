@@ -24,6 +24,11 @@
                 · slides_media.py (แบบแผนชื่อไฟล์รูปสไลด์ + clean_prompt)   [ทั้งหมดนี้ = สไลด์]
                 · media_cache.py (โหลด/แคช/ย่อสื่อ) · migrate_ex.py (แปลงสคีมาเก่า)
                 · bookscan_common.py · bookscan_index.py · bookscan_page.py
+                · toc_extract.py · ocr_page.py (ถอดสารบัญ/เนื้อหาจาก PDF ที่อัปขึ้นเว็บ —
+                  ย้ายมาจาก `docs/rag/` ของ repo งานตอน 3.4.0 เพื่อให้ทุกเครื่องถอดได้)
+                · eduone_api.py (ตัวเชื่อมเว็บของสองตัวบน) · eduone_web.py (ของตัวรับงาน)
+                · toc_schema.py · page_schema.py (กฎตรวจชุดเดียวกับเซิร์ฟเวอร์ —
+                  `webapp/app/` ถือสำเนา sync ด้วย `webapp/scripts/sync_from_plugin.py`)
                 · check_math.py (ตรวจสัญลักษณ์คณิต/วิทย์ก่อน build)
                 · validate_spec.py (**gate ก่อน checkwork** — โควตาข้อสอบ/เวลาคาบ/หน้าปก
                   verbatim/คำต้องห้ามบนสไลด์ L1-L2/**สคีมา `digest` ของ C1**/frontmatter
