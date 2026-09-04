@@ -2,8 +2,13 @@
 """ตัวรับงานประจำเครื่อง — คอยถามเว็บว่ามีงานไหม แล้วรันให้เองจนจบ
 
     eduone-py runner.py              # เปิดค้างไว้ รับงานไปเรื่อย ๆ
+    eduone-py runner.py --work <dir> # จดโฟลเดอร์งานลงไฟล์ตั้งค่า (ทำครั้งเดียวต่อเครื่อง)
     eduone-py runner.py --once       # ทำงานที่ค้างอยู่ใบเดียวแล้วออก (ไว้ทดสอบ)
     eduone-py runner.py --fake x.jsonl   # ไม่เรียก claude จริง อ่านไฟล์ตัวอย่างแทน
+
+รับงานสองชนิดจากคิวเดียวกัน
+    ใบสั่งผลิตสื่อ   /api/runs/<id>/...    (มาก่อนเสมอ — มีคนรอผลอยู่ปลายทาง)
+    งานคลังหนังสือ  /api/tasks/<id>/...   (ถอดสารบัญ · ถอดเนื้อหาเป็นบท)
 
 ทำไมต้องมีตัวนี้
     พนักงานที่ใช้ระบบนี้ไม่ได้เป็นคนสายคอม เก่งสุดคือรันตัวติดตั้งครั้งแรกได้
@@ -42,6 +47,16 @@ for extra in (HERE.parent / "skills" / "shared" / "scripts",):
 
 import eduone_web as web        # noqa: E402
 import stream_reader as sr      # noqa: E402
+
+# ★ ต้องตั้ง EDUONE_WORK_DIR *ก่อน* import _root — โมดูลนั้นคำนวณ WORK_ROOT ตอน import
+#   ครั้งเดียว และสคริปต์ลูกทุกตัวก็อ่าน env ตัวเดียวกันนี้ การตั้งทีหลังจึงสายเกินไป
+#   (ถ้าไม่ตั้ง _root จะเดินขึ้นหาหมุดจาก cwd — ซึ่งคือบั๊กที่ทำให้ตัวรับงานที่เปิดจาก
+#    โฟลเดอร์บ้านมองไม่เห็น BookScan และอัปไฟล์ขึ้นเว็บไม่ได้ทั้งรอบ)
+if not os.environ.get("EDUONE_WORK_DIR"):
+    _saved = str(web.raw_config().get("work_root") or "").strip()
+    if _saved:
+        os.environ["EDUONE_WORK_DIR"] = _saved
+
 from _root import WORK_ROOT     # noqa: E402
 
 POLL_SEC = 5                    #: ถามเว็บถี่แค่ไหนตอนไม่มีงาน
@@ -191,19 +206,23 @@ class Web:
         got = self.call(web.get, "/api/runner/next", {"machine_id": self.machine_id})
         return (got or {}).get("run")
 
-    def events(self, run_id: int, rows: list) -> str:
-        got = self.call(web.post_json, f"/api/runs/{run_id}/events", {"events": rows})
+    # ★ ทุกเส้นรับ `ep` ("/api/runs/12" หรือ "/api/tasks/12") ไม่ใช่ run_id เปล่า —
+    #   เว็บมีกระดานงานสองชุด (ใบสั่งผลิตสื่อ · งานคลังหนังสือ) ที่เลข id คนละชุดกัน
+    #   ถ้าประกอบ path จาก id อย่างเดียว งานถอดสารบัญใบที่ 12 จะไปปิดใบสั่งที่ 12 แทน
+
+    def events(self, ep: str, rows: list) -> str:
+        got = self.call(web.post_json, f"{ep}/events", {"events": rows})
         return (got or {}).get("status", "")
 
-    def ask(self, run_id: int, payload: dict):
-        return self.call(web.post_json, f"/api/runs/{run_id}/ask", payload)
+    def ask(self, ep: str, payload: dict):
+        return self.call(web.post_json, f"{ep}/ask", payload)
 
-    def advance(self, run_id: int, cmd_index: int, session_id):
-        return self.call(web.post_json, f"/api/runs/{run_id}/advance",
+    def advance(self, ep: str, cmd_index: int, session_id):
+        return self.call(web.post_json, f"{ep}/advance",
                          {"cmd_index": cmd_index, "session_id": session_id})
 
-    def finish(self, run_id: int, status: str, reason: str, usage: dict):
-        return self.call(web.post_json, f"/api/runs/{run_id}/finish",
+    def finish(self, ep: str, status: str, reason: str, usage: dict):
+        return self.call(web.post_json, f"{ep}/finish",
                          {"status": status, "reason": reason, "usage": usage})
 
 
@@ -244,6 +263,9 @@ class Job:
         self.run = run
         self.fake = fake
         self.run_id = run["run_id"]
+        # งานคลังหนังสือ (ถอดสารบัญ/ถอดเนื้อหา) เดินท่อเดียวกันหมด ต่างแค่ปลายทาง
+        self.is_task = run.get("kind") == "task"
+        self.ep = f"/api/{'tasks' if self.is_task else 'runs'}/{self.run_id}"
         self.base = run.get("base") or f"run{self.run_id}"
         self.prompts = run.get("prompts") or []
         # นับต่อจากที่เว็บมีอยู่แล้ว ไม่เริ่มหนึ่งใหม่ — ใบที่ถูกพักไว้รอคำตอบจะถูกหยิบ
@@ -265,7 +287,7 @@ class Job:
         if not self.pending:
             return ""
         rows, self.pending = self.pending, []
-        status = self.wb.events(self.run_id, rows)
+        status = self.wb.events(self.ep, rows)
         if status == "":
             # ส่งไม่ผ่าน — เอากลับเข้าคิวไว้ลองใหม่รอบหน้า ห้ามทิ้ง
             self.pending = rows + self.pending
@@ -285,7 +307,14 @@ class Job:
         if self.fake:
             return None
         cmd = build_cmd(prompt, resume)
-        env = dict(os.environ, PYTHONIOENCODING="utf-8", EDUONE_UNATTENDED="1")
+        env = dict(os.environ, PYTHONIOENCODING="utf-8", EDUONE_UNATTENDED="1",
+                   # ★ ตอกโฟลเดอร์งานลง env ให้สคริปต์ลูกทุกตัวเห็นค่าเดียวกับที่ตรวจไปแล้ว
+                   #   ไม่ปล่อยให้แต่ละตัวเดาจาก cwd เอง
+                   EDUONE_WORK_DIR=str(WORK_ROOT),
+                   # ★ docs/rag/eduone_api.py อ่านเฉพาะ EDUONE_URL/EDUONE_TOKEN (ไม่รู้จัก
+                   #   ~/.eduone/config.json) — ไม่ส่งให้ งานถอดสารบัญจะตายที่ "ยังไม่ได้ตั้ง
+                   #   EDUONE_URL" ทั้งที่เครื่องต่อเว็บได้อยู่แล้ว
+                   EDUONE_URL=self.wb.cfg["url"], EDUONE_TOKEN=self.wb.cfg["token"])
         log(f"รัน: {prompt[:80]}" + (f" (ต่อจากเซสชันเดิม {resume[:8]})" if resume else ""))
         return subprocess.Popen(
             cmd, cwd=str(WORK_ROOT), env=env, stdin=subprocess.DEVNULL,
@@ -404,6 +433,7 @@ class Job:
         idx = int(self.run.get("cmd_index") or 0)
         resume = self.session_id if self.run.get("answer") else None
         answer = self.run.get("answer")
+        spent: dict = {}          #: usage ของคำสั่งล่าสุด — ต้องส่งขึ้นเว็บตอนจบด้วย
 
         while idx < total:
             prompt = self.prompts[idx]
@@ -416,16 +446,26 @@ class Job:
                 resume = None
             out = self.one(prompt, resume)
             answer, resume = None, None
+            spent = out.get("usage") or spent
 
             if out["outcome"] == "ask":
+                # งานคลังหนังสือไม่มีที่ให้ค้างรอคำตอบบนเว็บ (ไม่มีหน้าใบสั่งให้ตอบ)
+                # และคำถามระหว่างถอดแปลว่าติดจริง — ปิดงานพร้อมคำถามเป็นเหตุผลให้คนอ่าน
+                if self.is_task:
+                    reason = "AI ถามกลับ: " + out["ask"]["question"]
+                    self.add("error", None, reason)
+                    self.flush()
+                    self.wb.finish(self.ep, "failed", reason, out["usage"])
+                    log(f"งานถอดไม่จบ: {reason}")
+                    return
                 self.asks += 1
                 if self.asks > MAX_ASKS:
-                    self.wb.finish(self.run_id, "failed",
+                    self.wb.finish(self.ep, "failed",
                                    f"ถามเกิน {MAX_ASKS} ครั้งในการรันเดียว", out["usage"])
                     return
                 self.add("ask", None, out["ask"]["question"])
                 self.flush()
-                self.wb.ask(self.run_id, {
+                self.wb.ask(self.ep, {
                     "question": out["ask"]["question"], "options": out["ask"]["options"],
                     "session_id": self.session_id, "cmd_index": idx})
                 log("AI ถามคำถาม — พักใบนี้ไว้รอคนตอบบนเว็บ")
@@ -434,20 +474,24 @@ class Job:
             if out["outcome"] == "fail":
                 self.add("error", None, out.get("reason", ""))
                 self.flush()
-                self.wb.finish(self.run_id, "failed", out.get("reason", ""), out["usage"])
+                self.wb.finish(self.ep, "failed", out.get("reason", ""), out["usage"])
                 log(f"งานไม่จบ: {out.get('reason')}")
                 return
 
             idx += 1
             if idx < total:
-                self.wb.advance(self.run_id, idx, None)
+                self.wb.advance(self.ep, idx, None)
                 self.session_id = None
 
         self.add("result", None, "ทำครบทุกคำสั่งของใบสั่งนี้แล้ว")
         self.flush()
-        self.wb.finish(self.run_id, "done", "", {})
+        # ★ ต้องส่ง usage จริง ไม่ใช่ {} — ของเดิมส่งก้อนว่างเฉพาะทางที่ "สำเร็จ"
+        #   ค่าโทเคนของงานที่ทำเสร็จจึงหายทุกใบ (ทางที่ล้มเหลวส่งถูกมาตลอด)
+        #   และ CLAUDE.md ข้อ 6 บังคับว่าต้องรายงาน token ทุกครั้งที่จบงาน
+        self.wb.finish(self.ep, "done", "", spent)
         log("งานจบเรียบร้อย")
-        self.upload()
+        if not self.is_task:
+            self.upload()
 
     def upload(self) -> None:
         """ส่งไฟล์ต้นฉบับขึ้นใบสั่งด้วยตัวเดิม — ไม่เขียนตรรกะการอัปซ้ำ"""
@@ -461,16 +505,63 @@ class Job:
             log(f"ส่งไฟล์ขึ้นเว็บไม่สำเร็จ (ไฟล์ยังอยู่ในเครื่อง): {exc}")
 
 
+def check_work_root() -> str:
+    """โฟลเดอร์งานใช้ได้ไหม — คืน "" ถ้าผ่าน หรือข้อความบอกวิธีแก้ถ้าไม่ผ่าน
+
+    ★ ทำไมต้อง "ไม่ผ่านไม่รัน" ไม่ใช่แค่เตือน: การรันผิดโฟลเดอร์ไม่ทำให้อะไรพังตรง ๆ
+      มันแค่ทำงานผิดที่แบบเงียบสนิท — AI ไล่หา BookScan ไม่เจอแล้วเดาเอง · report.py
+      อัปไฟล์ขึ้นเว็บไม่ได้เพราะหา Output ไม่เจอ · หน้าใบสั่งค้างที่ 3/5 ทั้งที่ไฟล์ครบ
+      แล้วในเครื่อง กว่าจะรู้ตัวก็จ่ายค่าโทเคนไปทั้งรอบแล้ว (เกิดจริง 2026-09-04)
+    """
+    home = Path.home().resolve()
+    root = WORK_ROOT.resolve()
+    fix = (f'ตั้งครั้งเดียวด้วย  eduone-py runner.py --work "<โฟลเดอร์งานของคุณ>"\n'
+           f'  แล้วเปิดใหม่ · หรือรันตัวช่วยติดตั้งอีกครั้งก็ตั้งให้เหมือนกัน\n'
+           f'  (ค่าที่จดไว้อยู่ในช่อง work_root ของ {web.CONFIG_FILE})')
+    # "เลือกไว้" = มีคนบอกมาตรง ๆ (ไฟล์ตั้งค่า หรือ env) ต่างจาก "เดามาจาก cwd"
+    chosen = bool(str(web.raw_config().get("work_root") or "").strip()
+                  or os.environ.get("EDUONE_WORK_DIR"))
+    if not root.is_dir():
+        return f"โฟลเดอร์งานที่ตั้งไว้ไม่มีอยู่จริง: {root}\n  {fix}"
+    if root == home:
+        # โฟลเดอร์บ้านไม่เคยเป็นโฟลเดอร์งาน — มันคือค่าที่ได้มาตอน "หาไม่เจอเลย"
+        return (f"โฟลเดอร์บ้าน ({root}) ไม่ใช่โฟลเดอร์งาน — ตัวรับงานถูกเปิดจากที่นี่\n"
+                f"  {fix}")
+    if not chosen and not any((root / m).exists() for m in ("Output", "BookScan", "CLAUDE.md")):
+        # เดามาจาก cwd และที่นั่นก็ไม่มีเค้าโครงของโฟลเดอร์งานเลย = เดาผิดแน่ ๆ
+        # (โฟลเดอร์งานที่ *เลือกไว้* ยังว่างได้ตามปกติ — เพิ่งสร้าง ยังไม่เคยทำงานสักใบ)
+        return (f"ยังไม่ได้บอกว่าโฟลเดอร์งานอยู่ที่ไหน — ที่เดาได้ตอนนี้คือ {root}\n"
+                f"  ซึ่งไม่มี Output/ หรือ BookScan/ อยู่เลย จึงไม่เริ่มงานให้\n  {fix}")
+    return ""
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="ตัวรับงานประจำเครื่องของ EDU ONE")
     ap.add_argument("--once", action="store_true", help="ทำงานที่ค้างอยู่ใบเดียวแล้วออก")
     ap.add_argument("--fake", help="ไฟล์ .jsonl ตัวอย่าง — ไม่เรียก claude จริง (ไว้ทดสอบ)")
+    ap.add_argument("--work", help="จดโฟลเดอร์งานลงไฟล์ตั้งค่าแล้วใช้ค่านี้ตั้งแต่ครั้งนี้")
     a = ap.parse_args()
+
+    if a.work:
+        p = Path(a.work).expanduser()
+        if not p.is_dir():
+            print(f"ไม่มีโฟลเดอร์ {p} — สร้างก่อนแล้วสั่งใหม่")
+            return 2
+        print(f"จดโฟลเดอร์งานไว้ที่ {web.save_work_root(str(p.resolve()))}")
+        # ตั้ง env ให้รอบนี้ด้วย แต่ WORK_ROOT ถูกคำนวณไปตั้งแต่ตอน import แล้ว
+        # จึงต้องให้ผู้ใช้เปิดใหม่ ไม่ใช่แกล้งเดินต่อด้วยค่าเก่า
+        print("ตั้งค่าแล้ว — เปิดตัวรับงานใหม่อีกครั้งได้เลย")
+        return 0
 
     lock = take_lock()
     if not lock:
         print("มีตัวรับงานเปิดอยู่แล้วบนเครื่องนี้ — ไม่เปิดซ้ำ")
         return 1
+
+    problem = check_work_root()
+    if problem:
+        log("ไม่เริ่มงาน — โฟลเดอร์งานยังไม่ถูกต้อง:\n  " + problem)
+        return 2
 
     log(f"ตัวรับงานเริ่มทำงาน · โฟลเดอร์งาน {WORK_ROOT}")
     idle = 0
@@ -508,13 +599,17 @@ def main() -> int:
             continue
 
         idle = 0
-        log(f"รับงาน: ใบสั่ง #{run.get('job_id')} · {run.get('base')}")
+        if run.get("kind") == "task":
+            log(f"รับงานคลังหนังสือ: {run.get('label') or run.get('base')}")
+        else:
+            log(f"รับงาน: ใบสั่ง #{run.get('job_id')} · {run.get('base')}")
         try:
             Job(wb, run, fake=a.fake).go()
         except Exception as exc:                   # noqa: BLE001
             # งานใบเดียวล้มต้องไม่ทำให้ตัวรับงานหยุดทั้งวัน
             log(f"งานใบนี้พังกลางคัน: {exc}")
-            wb.finish(run["run_id"], "failed", f"ตัวรับงานพลาด: {exc}", {})
+            ep = f"/api/{'tasks' if run.get('kind') == 'task' else 'runs'}/{run['run_id']}"
+            wb.finish(ep, "failed", f"ตัวรับงานพลาด: {exc}", {})
         if a.once:
             return 0
 

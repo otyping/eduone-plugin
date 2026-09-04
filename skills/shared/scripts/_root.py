@@ -13,12 +13,20 @@
 
 ลำดับการหา (ตัวแรกที่เจอชนะ)
     REFERENCE_DIR : EDUONE_REFERENCE_DIR -> CLAUDE_PLUGIN_ROOT -> เดินขึ้นหา .claude/
-    WORK_ROOT     : EDUONE_WORK_DIR -> CLAUDE_PROJECT_DIR -> เดินขึ้นหาหมุดของ repo -> cwd
+    WORK_ROOT     : EDUONE_WORK_DIR -> CLAUDE_PROJECT_DIR -> เดินขึ้นหาหมุดของ repo
+                    -> work_root ใน ~/.eduone/config.json -> cwd
 
 ยังเข้ากันได้กับโครงเดิม 100% — ถ้าไม่ตั้ง env อะไรเลย จะได้ค่าเท่าที่เคยเป็น
+
+★ ทำไมไฟล์ตั้งค่ามาทีหลังการเดินขึ้นหาหมุด: คนที่ cd อยู่ในโฟลเดอร์งานจริง ๆ อยู่แล้ว
+  ต้องได้โฟลเดอร์นั้นเสมอ (ทำงานหลายโฟลเดอร์พร้อมกันได้) · ไฟล์ตั้งค่าเป็นตาข่ายรับ
+  กรณีที่ cwd ไม่ได้อยู่ในโฟลเดอร์งานเลย ซึ่งเดิมตกไปที่ cwd แบบเงียบ ๆ
+  (เกิดจริง 2026-09-04: ตัวรับงานถูกเปิดจาก C:\\Users\\<ชื่อ> → WORK_ROOT กลายเป็น
+   โฟลเดอร์บ้าน หา BookScan ไม่เจอ และ report.py อัปไฟล์ขึ้นเว็บไม่ได้ทั้งรอบ)
 """
 from __future__ import annotations
 
+import json
 import os
 from pathlib import Path
 
@@ -68,6 +76,27 @@ def find_reference_dir() -> Path:
     return here.parent / "reference"
 
 
+#: ไฟล์ตั้งค่าของเครื่อง (ไฟล์เดียวกับที่ eduone_web.py ใช้เก็บ url/token)
+CONFIG_FILE = Path.home() / ".eduone" / "config.json"
+
+
+def configured_work_root() -> Path | None:
+    """โฟลเดอร์งานที่ตัวช่วยติดตั้งจดไว้ — None ถ้ายังไม่ได้ตั้ง หรือชี้ไปที่ที่ไม่มีจริง
+
+    ★ ห้ามพังเพราะไฟล์ตั้งค่าเสีย — สคริปต์ทุกตัวในโปรเจกต์ import โมดูลนี้
+      ไฟล์ JSON ที่พิมพ์ตกจึงต้องแปลว่า "ไม่มีค่าตั้งไว้" ไม่ใช่ "ทุกอย่างรันไม่ได้"
+    """
+    try:
+        data = json.loads(CONFIG_FILE.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    raw = str(data.get("work_root") or "").strip()
+    if not raw:
+        return None
+    p = Path(raw).expanduser()
+    return p if p.is_dir() else None
+
+
 def find_work_root() -> Path:
     """รากของที่ทำงาน — ที่วาง Output/ และ BookScan/"""
     for name in ("EDUONE_WORK_DIR", "CLAUDE_PROJECT_DIR"):
@@ -80,7 +109,7 @@ def find_work_root() -> Path:
     if root:
         return root
 
-    return cwd
+    return configured_work_root() or cwd
 
 
 REFERENCE_DIR = find_reference_dir()

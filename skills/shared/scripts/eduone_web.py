@@ -7,7 +7,10 @@
 
 ค่าตั้งค่า (ตัวแรกที่เจอชนะ)
     ตัวแปรสภาพแวดล้อม  EDUONE_WEB_URL / EDUONE_WEB_TOKEN
-    ไฟล์               ~/.eduone/config.json  {"url": "...", "token": "..."}
+    ไฟล์               ~/.eduone/config.json  {"url": ..., "token": ..., "work_root": ...}
+
+★ `work_root` อยู่ในไฟล์เดียวกันเพราะมันเป็นสมบัติของ *เครื่อง* เหมือนโทเคน ไม่ใช่ของ repo
+  และตัวรับงานต้องรู้ค่านี้ให้ได้โดยไม่ต้องพึ่ง cwd (ดู _root.configured_work_root)
 
 ★ โทเคนเป็นของ "คน" ไม่ใช่ของเครื่อง — ออกเองที่หน้า /me/tokens ของเว็บ
   เก็บไว้นอกโฟลเดอร์งานเพื่อไม่ให้หลุดขึ้น git ของงานโดยไม่ตั้งใจ
@@ -73,11 +76,40 @@ def config() -> dict | None:
     return {"url": url.rstrip("/"), "token": token}
 
 
-def save_config(url: str, token: str) -> Path:
+def raw_config() -> dict:
+    """ไฟล์ตั้งค่าดิบ ๆ ทั้งก้อน — ตัวที่อยากได้ช่องอื่นนอกจาก url/token เรียกอันนี้
+
+    คืน {} เมื่ออ่านไม่ได้ ไม่ใช่โยน error: ไฟล์เสียต้องแปลว่า "ยังไม่ได้ตั้ง"
+    """
+    try:
+        data = json.loads(CONFIG_FILE.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def save_config(url: str, token: str, work_root: str = "") -> Path:
+    """เขียนไฟล์ตั้งค่า — ★ merge ของเดิม ไม่ใช่เขียนทับทั้งไฟล์
+
+    ของเดิมเขียนทับทั้งก้อน พอมี work_root เพิ่มเข้ามา การเรียกเพื่ออัปเดตโทเคน
+    อย่างเดียวจะลบโฟลเดอร์งานทิ้งเงียบ ๆ แล้วตัวรับงานจะไม่ยอมเริ่มในวันรุ่งขึ้น
+    """
+    data = raw_config()
+    data["url"] = url.rstrip("/")
+    data["token"] = token
+    if work_root:
+        data["work_root"] = str(work_root)
     CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
-    CONFIG_FILE.write_text(
-        json.dumps({"url": url.rstrip("/"), "token": token}, ensure_ascii=False, indent=2),
-        encoding="utf-8")
+    CONFIG_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+    return CONFIG_FILE
+
+
+def save_work_root(work_root: str) -> Path:
+    """จดโฟลเดอร์งานไว้อย่างเดียว — ใช้ตอน `runner.py --work <path>`"""
+    data = raw_config()
+    data["work_root"] = str(work_root)
+    CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
+    CONFIG_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
     return CONFIG_FILE
 
 

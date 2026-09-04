@@ -439,6 +439,30 @@ if (Test-Path $w) {
     }
 }
 
+# ★ จดโฟลเดอร์งานลงไฟล์ตั้งค่าด้วย ไม่ใช่แค่ตั้ง Set-Location ในทางลัด
+#   ทางลัดช่วยได้เฉพาะคนที่กดทางลัด — คนที่พิมพ์ `eduone-py runner.py` เองในเทอร์มินัล
+#   ที่เปิดอยู่ที่ไหนก็ไม่รู้ จะได้โฟลเดอร์งานผิดแบบเงียบ ๆ (เกิดจริง 2026-09-04:
+#   เปิดจาก C:\Users\<ชื่อ> แล้ว AI หา BookScan ไม่เจอ ไฟล์ก็ไม่ถูกส่งขึ้นเว็บทั้งรอบ)
+#   ตั้งแต่รุ่นนี้ตัวรับงาน "ไม่เริ่มงาน" ถ้าไม่มีค่านี้ — จดไว้ตรงนี้จึงเป็นขั้นบังคับ
+if (Test-Path $w) {
+    try {
+        $cfgDir = Split-Path -Parent $cfgFile
+        if (-not (Test-Path $cfgDir)) { New-Item -ItemType Directory -Force $cfgDir | Out-Null }
+        $cur = @{}
+        if (Test-Path $cfgFile) {
+            $old = Get-Content -Raw $cfgFile | ConvertFrom-Json
+            foreach ($p in $old.PSObject.Properties) { $cur[$p.Name] = $p.Value }
+        }
+        $cur["work_root"] = (Resolve-Path $w).Path
+        [System.IO.File]::WriteAllText($cfgFile, ($cur | ConvertTo-Json),
+                                       (New-Object System.Text.UTF8Encoding $false))
+        Good "จดโฟลเดอร์งานไว้ใน $cfgFile แล้ว - ตัวรับงานจะใช้ค่านี้เสมอ ไม่ว่าเปิดจากที่ไหน"
+    } catch {
+        Miss "เขียน work_root ลง $cfgFile ไม่สำเร็จ: $_"
+        Say  "  ตั้งเองได้ด้วย:  eduone-py runner.py --work `"$w`""
+    }
+}
+
 # ---------------------------------------------------------------- กฎอนุญาต
 Head "กฎอนุญาตให้รันสคริปต์โดยไม่ต้องถามทุกครั้ง"
 Say "  ปกติ Claude Code จะถามอนุญาตทุกครั้งที่รันคำสั่ง ซึ่งจะถามบ่อยมากตอนผลิตสื่อ"
